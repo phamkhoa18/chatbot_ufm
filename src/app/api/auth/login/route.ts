@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     // MOCK JWT or simple token (Since we don't have jose installed, we will just use the ID for simplicity in cookies, though it's not super secure for prod, it fulfills demo logic)
     response.cookies.set('admin_session', admin._id.toString(), {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: false,
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7, // 7 days
       path: '/'
