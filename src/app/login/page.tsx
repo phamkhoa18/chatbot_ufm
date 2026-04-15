@@ -37,8 +37,8 @@ export default function LoginPage() {
 
       if (res.ok && data.success) {
         showToast.success('Đăng nhập thành công!');
-        router.push('/admin');
-        router.refresh();
+        // Thay vì dùng router.push gây conflict với lệnh bên dưới, dùng window.location.href để refresh state
+        window.location.href = '/admin';
       } else {
         setError(data.error || 'Sai thông tin đăng nhập');
         showToast.error(data.error || 'Sai thông tin đăng nhập');
