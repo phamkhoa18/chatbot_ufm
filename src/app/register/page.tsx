@@ -47,9 +47,11 @@ export default function RegisterPage() {
         router.push('/login');
       } else {
         setError(data.error || 'Lỗi đăng ký');
+        showToast.error(data.error || 'Lỗi đăng ký');
       }
     } catch (err) {
       setError('Lỗi kết nối máy chủ');
+      showToast.error('Lỗi kết nối máy chủ');
     } finally {
       setLoading(false);
     }

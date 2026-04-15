@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Lock, User, ArrowRight, Loader2, ShieldCheck } from 'lucide-react';
+import { showToast } from '@/lib/toast';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -35,14 +36,17 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
+        showToast.success('Đăng nhập thành công!');
         router.push('/admin');
         router.refresh();
       } else {
         setError(data.error || 'Sai thông tin đăng nhập');
+        showToast.error(data.error || 'Sai thông tin đăng nhập');
         setLoading(false);
       }
     } catch (err) {
       setError('Lỗi kết nối máy chủ');
+      showToast.error('Lỗi kết nối máy chủ');
       setLoading(false);
     }
   };
