@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# UFM Tuyển Sinh Chatbot - Next.js Frontend
 
-## Getting Started
+Dự án Frontend xây dựng hệ thống Chatbot Tuyển sinh và Quản trị CRM cho trường Đại học Tài chính - Marketing (UFM). 
 
-First, run the development server:
+Hệ thống được thiết kế theo phong cách UI hiện đại (tương tự như `uxui-taichinh`), tập trung vào trải nghiệm người dùng tối ưu và tốc độ phản hồi nhanh.
 
+## Tính năng chính
+
+### 1. Dành cho Sinh viên/Ứng viên
+- Giao diện chat toàn màn hình hiển thị nội dung trực quan.
+- **Truyền nội dung mượt (Streaming)**: Hỗ trợ stream SSE, gõ từng chữ giống ChatGPT.
+- **Theo dõi khách hàng tiềm năng**: Form thu thập thông tin người dùng trước hoặc trong khi chat.
+- Hiển thị tài liệu/nguồn tham khảo rõ ràng kèm đường dẫn tải/xem tài liệu.
+
+### 2. Dành cho Admin / Quản trị viên
+- **Thống kê tổng quan (`/admin`)**: Biểu đồ hoạt động, trạng thái khách hàng tiềm năng, lưu lượng chat hàng ngày.
+- **Quản lý hội thoại (`/admin/lich-su-chat`)**: Tra cứu toàn bộ hội thoại của người dùng với hệ thống AI theo thời gian thực.
+- **Quản lý Leads (`/admin/khach-hang-tiem-nang`)**: Lưu danh sách những người dùng tiềm năng (được AI đánh giá thông qua Chat).
+- **RAG Document Management (`/admin/ai-chatbot`)**: Pipeline nạp tài liệu cho AI với luồng Pipeline chuyên dụng (Upload, Chia chunk, Re-ingest).
+
+## Cấu trúc luồng chạy (Chat - Lead Pipeline)
+1. User truy cập trang hiển thị modal thu thập thông tin (Tên, SĐT, Email).
+2. Thông tin sẽ được liên kết trực tiếp với các phiên chat thông qua Session lưu trữ nội bộ.
+3. Trong lúc chat, tin nhắn được hiển thị bằng tính năng Streaming thông qua SSE từ backend FastAPI.
+4. Khi user đóng tab hoặc rời trang, hệ thống âm thầm (Silent Background POST) lưu toàn bộ phiên chat.
+5. AI đánh giá phiên chat (Lead Analytics) từ 1-10 điểm. Hệ thống chỉ lưu người dùng vào CRM (Leads) nếu đạt điểm đánh giá.
+
+## Stack Công nghệ
+- **Framework**: Next.js 14+ (App Router).
+- **Styling**: Tailwind CSS & Lucide React.
+- **Animation**: Framer Motion & Custom Keyframes.
+- **Database**: MongoDB (Mongoose).
+- **AI Integration**: Tích hợp với `FASTAPI_URL` phía sau (Sử dụng SSE/Stream).
+
+## Thiết lập và Chạy ứng dụng
+
+### 1. Cài đặt Dependency
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Cấu hình Biến môi trường (.env.local)
+```env
+MONGODB_URI=mongodb_của_bạn
+NEXT_PUBLIC_FASTAPI_URL=http://localhost:8000
+# Các biến OPENROUTER Cần dùng đánh giá tiềm năng
+OPENROUTER_API_KEY=your_openrouter_key
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 3. Chạy Server
+```bash
+npm run dev
+# Mặc định ứng dụng sẽ chạy tại port 3000 -> http://localhost:3000
+```

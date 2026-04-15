@@ -1,0 +1,146 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Image from 'next/image';
+import Link from 'next/link';
+import { Lock, User, ArrowRight, Loader2, ShieldCheck } from 'lucide-react';
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username || !password) {
+      setError('Vui lòng nhập đầy đủ thông tin');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        router.push('/admin');
+        router.refresh();
+      } else {
+        setError(data.error || 'Sai thông tin đăng nhập');
+        setLoading(false);
+      }
+    } catch (err) {
+      setError('Lỗi kết nối máy chủ');
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center relative overflow-hidden">
+      {/* Decorative Background Elements */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-[#005496]/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-400/10 rounded-full blur-[120px] pointer-events-none" />
+
+      <div className="relative z-10 w-full max-w-[420px] p-6 animate-in fade-in zoom-in-95 duration-500">
+        {/* Logo/Header */}
+        <div className="text-center mb-8">
+          <div className="w-20 h-20 bg-white rounded-2xl mx-auto flex items-center justify-center shadow-lg shadow-[#005496]/10 mb-5 relative group cursor-default p-2 border border-slate-100">
+            <Image src="/logo_ufm.png" alt="Logo UFM" width={68} height={68} priority className="object-contain relative z-10 duration-500 group-hover:scale-110" />
+            <div className="absolute inset-0 bg-[#005496]/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Hệ thống Quản trị AI</h1>
+          <p className="text-[14px] text-slate-500 font-medium mt-1.5 flex items-center justify-center gap-1.5">
+            <ShieldCheck size={14} className="text-emerald-500" />
+            Bảo mật & Mã hóa E2E
+          </p>
+        </div>
+
+        {/* Login Card */}
+        <div className="bg-white rounded-[24px] shadow-xl shadow-slate-200/50 p-8 border border-slate-100/80 backdrop-blur-xl">
+          <form onSubmit={handleLogin} className="space-y-5">
+            {error && (
+              <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 text-[13px] font-bold text-center animate-in shake">
+                {error}
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <label className="text-[12px] font-bold text-slate-600 uppercase tracking-wider pl-1">Tài khoản</label>
+              <div className="relative group">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#005496] transition-colors">
+                  <User size={18} />
+                </div>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full h-12 pl-12 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-[14px] font-semibold text-slate-800 placeholder:font-medium placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#005496]/30 focus:border-[#005496] focus:bg-white transition-all"
+                  placeholder="admin"
+                  autoComplete="username"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[12px] font-bold text-slate-600 uppercase tracking-wider pl-1">Mật khẩu</label>
+              <div className="relative group">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#005496] transition-colors">
+                  <Lock size={18} />
+                </div>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full h-12 pl-12 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-[14px] font-semibold text-slate-800 placeholder:font-medium placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#005496]/30 focus:border-[#005496] focus:bg-white transition-all"
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full h-12 flex items-center justify-center gap-2 bg-[#005496] hover:bg-[#004078] text-white rounded-xl font-bold text-[14px] shadow-md shadow-[#005496]/20 transition-all disabled:opacity-70 disabled:cursor-not-allowed mt-2 group overflow-hidden relative"
+            >
+              <div className="absolute inset-0 w-full h-full bg-white/20 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
+              {loading ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  Đang xác thực...
+                </>
+              ) : (
+                <>
+                  Đăng nhập <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                </>
+              )}
+            </button>
+            
+            <div className="pt-4 mt-6 border-t border-slate-100 text-center">
+              <Link href="/register" className="text-[13px] font-bold text-slate-500 hover:text-[#005496] transition-colors">
+                Chưa có tài khoản Quản trị? Đăng ký ngay
+              </Link>
+            </div>
+          </form>
+        </div>
+
+        {/* Footer */}
+        <p className="text-center text-[12px] font-medium text-slate-400 mt-8">
+          &copy; {new Date().getFullYear()} UFM Chatbot Admin System.
+        </p>
+      </div>
+    </div>
+  );
+}
