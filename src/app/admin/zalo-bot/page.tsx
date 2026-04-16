@@ -91,10 +91,18 @@ export default function ZaloBotPage() {
     setRegisteringWebhook(true);
     try {
       const webhookUrl = config.webhookUrl || `${window.location.origin}/api/zalo/webhook`;
+      const secretToken = config.webhookSecretToken;
+
+      if (!secretToken || secretToken.startsWith('••••••')) {
+        showToast.error('Vui lòng nhập Webhook Secret Token trước!');
+        setRegisteringWebhook(false);
+        return;
+      }
+
       const res = await fetch('/api/admin/zalo-config/refresh-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ webhookUrl }),
+        body: JSON.stringify({ webhookUrl, secretToken }),
       });
       const json = await res.json();
       if (json.success) {

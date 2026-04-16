@@ -44,11 +44,10 @@ export async function sendZaloBotTyping(botToken: string, chatId: string) {
 export async function setZaloBotWebhook(
   botToken: string,
   webhookUrl: string,
-  secretToken?: string
+  secretToken: string
 ) {
   const url = `${ZALO_BOT_API}${botToken}/setWebhook`;
-  const body: any = { url: webhookUrl };
-  if (secretToken) body.secret_token = secretToken;
+  const body = { url: webhookUrl, secret_token: secretToken };
 
   const res = await fetch(url, {
     method: 'POST',
