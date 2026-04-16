@@ -41,13 +41,11 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { ok, result } = body;
+    const { event_name, message } = body;
 
-    if (!ok || !result) {
+    if (!event_name || !message) {
       return NextResponse.json({ message: 'Invalid payload' }, { status: 200 });
     }
-
-    const { event_name, message } = result;
     console.log('[ZaloBot Webhook] Event:', event_name, '| From:', message?.from?.display_name);
 
     // Xử lý tin nhắn text
