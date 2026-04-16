@@ -14,18 +14,50 @@ export async function sendZaloBotMessage(
   text: string
 ) {
   const url = `${ZALO_BOT_API}${botToken}/sendMessage`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text }),
-  });
+  
+  // Zalo giới hạn 2000 ký tự. Cắt nhỏ tin nhắn nếu quá dài (chuẩn 1900 cho an toàn)
+  const MAX_LENGTH = 1900;
+  const chunks = [];
+  let currentStr = text;
 
-  const data = await res.json();
-  if (!data.ok) {
-    console.error('[ZaloBot] sendMessage error:', data);
-    throw new Error(data.description || 'Zalo Bot API error');
+  // Thuật toán cắt tin nhắn không làm đứt chữ
+  while (currentStr.length > 0) {
+    if (currentStr.length <= MAX_LENGTH) {
+      chunks.push(currentStr);
+      break;
+    }
+    
+    let splitIndex = currentStr.lastIndexOf('\n', MAX_LENGTH); // Ưu tiên cắt theo đoạn văn
+    if (splitIndex === -1) splitIndex = currentStr.lastIndexOf(' ', MAX_LENGTH); // Không có xuống dòng thì cắt theo chữ
+    if (splitIndex === -1) splitIndex = MAX_LENGTH; // Chữ dính liền thì cắt cứng luôn
+    
+    chunks.push(currentStr.substring(0, splitIndex).trim());
+    currentStr = currentStr.substring(splitIndex).trim();
   }
-  return data;
+
+  let lastResponse;
+  
+  // Gửi tuần tự các đoạn tin nhắn
+  for (const chunk of chunks) {
+    if (!chunk) continue;
+    
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: chunk }),
+    });
+
+    lastResponse = await res.json();
+    if (!lastResponse.ok) {
+      console.error('[ZaloBot] sendMessage error:', lastResponse);
+      throw new Error(lastResponse.description || 'Zalo Bot API error');
+    }
+    
+    // Nghỉ 1 chút xíu giữa các tin để Zalo khỏi block spam
+    await new Promise(r => setTimeout(r, 200)); 
+  }
+
+  return lastResponse;
 }
 
 // ========== GỬI TYPING ACTION ==========
