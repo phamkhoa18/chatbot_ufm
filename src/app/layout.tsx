@@ -6,20 +6,20 @@ import GlobalChatbotWrapper from "@/components/GlobalChatbotWrapper";
 export const metadata: Metadata = {
   metadataBase: new URL("https://daotaosdh.ufm.edu.vn"),
   title: {
-    default: "Hệ thống Tư vấn Tuyển sinh SĐH – UFM",
-    template: "%s | Trợ lý AI – UFM",
+    default: "Cô Thắm Tuyển sinh SĐH – UFM",
+    template: "%s | Cô Thắm Tuyển sinh – UFM",
   },
   description:
-    "Trợ lý ảo AI tư vấn tuyển sinh Thạc sĩ, Tiến sĩ tại Viện Đào tạo Sau Đại học – Đại học Tài chính – Marketing (UFM).",
+    "Nhắn tin cùng Cô Thắm Tuyển sinh (trợ lý ảo AI) tư vấn Thạc sĩ, Tiến sĩ tại Viện Đào tạo Sau Đại học – Đại học Tài chính – Marketing (UFM).",
   keywords:
-    "tuyển sinh ufm, viện sau đại học UFM, thạc sĩ tài chính, tiến sĩ quản trị kinh doanh, tuyển sinh sau đại học, AI tư vấn tuyển sinh",
+    "cô thắm tuyển sinh ufm, chatbot cô thắm, tuyển sinh ufm, viện sau đại học UFM, thạc sĩ tài chính, tiến sĩ quản trị kinh doanh, tuyển sinh sau đại học, AI tư vấn tuyển sinh",
   authors: [{ name: "Viện Đào tạo Sau Đại học – UFM" }],
   openGraph: {
     type: "website",
     locale: "vi_VN",
-    siteName: "Hệ thống AI Chatbot – UFM",
-    title: "Trợ lý ảo AI – Viện Đào tạo Sau Đại học UFM",
-    description: "Nhắn tin trực tiếp với AI để nhận thông tin tuyển sinh, học phí, và lộ trình đào tạo nhanh chóng.",
+    siteName: "Cô Thắm Tuyển sinh SĐH – UFM",
+    title: "Cô Thắm Tuyển sinh – Viện Đào tạo Sau Đại học UFM",
+    description: "Nhắn tin trực tiếp với Cô Thắm Tuyển sinh để nhận thông tin tuyển sinh, học phí, và lộ trình đào tạo nhanh chóng.",
   },
   robots: {
     index: true,

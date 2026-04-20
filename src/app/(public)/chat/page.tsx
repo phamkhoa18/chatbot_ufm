@@ -219,7 +219,7 @@ export default function ChatLandingPage() {
                 <div className="absolute inset-[-30px] rounded-full border border-dashed border-[#0284c7]/15" />
 
                 <Image
-                  src="/images/ufm_chatbot.png"
+                  src="/images/cotham_chatbot_nobg.jpg"
                   alt="Trợ lý Tuyển sinh UFM"
                   fill
                   sizes="(max-width: 768px) 280px, (max-width: 1024px) 380px, 440px"
@@ -259,8 +259,8 @@ export default function ChatLandingPage() {
                     />
                   </div>
                   <div>
-                    <p className="text-[11px] font-medium text-[#64748b]">Tư vấn viên AI</p>
-                    <p className="text-[15px] font-bold text-[#005496]">Tuyển sinh UFM</p>
+                    <p className="text-[11px] font-medium text-[#64748b]">Tư vấn viên</p>
+                    <p className="text-[15px] font-bold text-[#005496]">Cô Thắm Tuyển sinh</p>
                   </div>
                 </motion.div>
               </div>
@@ -559,7 +559,7 @@ export default function ChatLandingPage() {
               <div className="flex items-center justify-between px-6 py-4 bg-[#005496]">
                 <div className="flex items-center gap-3">
                   <div className="relative w-10 h-10 rounded-full bg-white border-2 border-white/20 flex items-center justify-center overflow-hidden">
-                    <Image src="/images/ufm_chatbot.png" alt="Tuyển sinh UFM" width={36} height={36} className="w-full h-full object-cover" />
+                    <Image src="/images/cotham_chatbot.png" alt="Tuyển sinh UFM" width={36} height={36} className="w-full h-full object-cover scale-[1.15]" />
                     <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-[#005496]" />
                   </div>
                   <div>
@@ -599,7 +599,7 @@ export default function ChatLandingPage() {
                     className="flex gap-2.5 max-w-[85%]"
                   >
                     <div className="w-9 h-9 rounded-full bg-white border border-[#e2e8f0] flex items-center justify-center flex-shrink-0 shadow-sm overflow-hidden mt-1">
-                      <Image src="/images/ufm_chatbot.png" alt="UFM Bot" width={32} height={32} className="w-full h-full object-cover" />
+                      <Image src="/images/cotham_chatbot.png" alt="UFM Bot" width={32} height={32} className="w-full h-full object-cover scale-[1.15]" />
                     </div>
                     <div className="bg-white border border-[#e2e8f0] text-[#334155] px-5 py-4 rounded-[20px] rounded-bl-[6px] text-[15px] leading-[1.7] shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
                       {displayed}

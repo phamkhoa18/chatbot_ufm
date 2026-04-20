@@ -1,5 +1,15 @@
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Cô Thắm Tuyển sinh - Viện Đào tạo Sau Đại học UFM',
+  description: 'Trò chuyện cùng Cô Thắm Tuyển sinh - Trợ lý AI tư vấn tuyển sinh Thạc sĩ, Tiến sĩ tại Viện Đào tạo Sau Đại học, Đại học Tài chính - Marketing (UFM).',
+  openGraph: {
+    title: 'Cô Thắm Tuyển sinh - Viện Đào tạo Sau Đại học UFM',
+    description: 'Trò chuyện trực tiếp cùng Cô Thắm Tuyển sinh để giải đáp mọi thắc mắc về tuyển sinh dễ dàng và nhanh chóng.',
+  }
+};
 
 export default function ChatLayout({
   children,

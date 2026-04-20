@@ -320,10 +320,10 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       {/* Sender label — synced with Chatbot widget */}
       {isBot ? (
         <div className="flex items-center gap-1.5 mb-1 ml-1">
-          <div className="w-5 h-5 rounded-full overflow-hidden flex-shrink-0">
-            <Image src="/images/ufm_chatbot_icon.png" alt="UFM" width={20} height={20} className="rounded-full object-cover" />
+          <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 shadow-sm border border-[#e5e7eb]">
+            <Image src="/images/cotham_chatbot.png" alt="Cô Thắm" width={24} height={24} className="w-full h-full object-cover scale-[1.15]" />
           </div>
-          <span className="text-[12px] font-medium text-gray-500">UFM Tuyển sinh</span>
+          <span className="text-[12px] font-medium text-gray-500">Cô Thắm</span>
         </div>
       ) : (
         <span className="text-[11px] font-medium text-gray-400 mr-1 mb-1">Bạn</span>
@@ -1022,10 +1022,10 @@ export default function ChatCreatePage() {
                   <div className="bg-[#005496] p-5 text-center relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-full bg-black opacity-10" />
                     <div className="relative z-10">
-                      <div className="w-12 h-12 bg-white rounded-full mx-auto mb-3 flex items-center justify-center shadow-lg">
-                        <Image src="/images/ufm_chatbot_icon.png" alt="UFM" width={32} height={32} className="rounded-full" />
+                      <div className="w-14 h-14 bg-white rounded-full mx-auto mb-3 flex items-center justify-center shadow-xl border-4 border-white/50 overflow-hidden relative">
+                        <Image src="/images/cotham_chatbot.png" alt="Cô Thắm" width={56} height={56} className="w-full h-full object-cover scale-[1.15]" />
                       </div>
-                      <h2 className="text-white text-lg font-bold">Chào mừng bạn đến với UFM Bot</h2>
+                      <h2 className="text-white text-lg font-bold">Chào mừng bạn đến với Cô Thắm</h2>
                       <p className="text-[#90c2ff] text-sm mt-1 mb-2">Vui lòng cung cấp một số thông tin để chúng tôi hỗ trợ bạn tốt nhất.</p>
                     </div>
                   </div>
@@ -1113,18 +1113,22 @@ export default function ChatCreatePage() {
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ delay: 0.1, duration: 0.4 }}
-                  className="w-14 h-14 md:w-16 md:h-16 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-[#f0f7ff] to-[#e0efff] border border-[#d0e3f5] shadow-[0_2px_12px_rgba(0,84,150,0.08)] flex items-center justify-center overflow-hidden"
+                  className="w-16 h-16 md:w-[72px] md:h-[72px] mx-auto mb-5 rounded-2xl bg-white border border-[#d0e3f5] shadow-[0_4px_24px_rgba(0,84,150,0.12)] flex items-center justify-center overflow-hidden"
                 >
-                  <Image src="/images/ufm_chatbot_icon.png" alt="UFM Bot" width={48} height={48} className="w-10 h-10 md:w-12 md:h-12 object-cover" />
+                  <Image src="/images/cotham_chatbot.png" alt="Cô Thắm" width={72} height={72} className="w-full h-full object-cover scale-[1.15]" priority />
                 </motion.div>
 
                 <h1 className="text-[24px] md:text-[36px] font-bold tracking-tight mb-2 md:mb-3" style={{ color: TEXT_COLOR }}>
                   {greeting.text}{' '}
                   <span className="bg-gradient-to-r from-[#005496] to-[#0284c7] bg-clip-text text-transparent">{greeting.highlight}</span>
                   {' '}{greeting.emoji}
+                  <br />
+                  <span className="text-[20px] md:text-[28px] mt-2 block font-semibold text-[#005496]">
+                    Mình là Cô Thắm
+                  </span>
                 </h1>
                 <p className="text-[14px] md:text-[16px] text-[#9ca3af] font-normal">
-                  Hỏi bất cứ điều gì về tuyển sinh Sau Đại học
+                  Bạn hãy hỏi cô những thắc mắc về tuyển sinh, cô sẽ tư vấn cho bạn
                 </p>
               </motion.div>
 

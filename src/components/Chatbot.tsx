@@ -17,17 +17,22 @@ const chatMarkdown: Components = {
   em: ({ children }) => (
     <em className="italic opacity-80">{children}</em>
   ),
-  a: ({ href, children }) => (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="font-semibold hover:opacity-80 transition-opacity break-words"
-      style={{ color: '#3578E5', textDecoration: 'underline' }}
-    >
-      {children}
-    </a>
-  ),
+  a: ({ href, children }) => {
+    const finalHref = href?.startsWith('/view-document')
+      ? `${process.env.NEXT_PUBLIC_FASTAPI_URL || 'https://chatbot-ufm-api.vincode.xyz'}${href}`
+      : href;
+    return (
+      <a
+        href={finalHref}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-semibold hover:opacity-80 transition-opacity break-words"
+        style={{ color: '#3578E5', textDecoration: 'underline' }}
+      >
+        {children}
+      </a>
+    );
+  },
   ul: ({ children }) => (
     <ul className="my-1.5 ml-0.5 space-y-1">{children}</ul>
   ),
@@ -179,7 +184,7 @@ import { showToast } from '@/lib/toast';
 
 const WELCOME_MSG = {
   id: 1,
-  text: 'Xin chào Quý khách! Trợ lý rất vui được hỗ trợ Quý khách. Quý khách cần tư vấn về tuyển sinh Sau Đại học hay thông tin nào khác ạ? 😊',
+  text: 'Xin chào bạn! Cô là Thắm, người sẽ hỗ trợ tư vấn tuyển sinh cho bạn hôm nay. Bạn cần tìm hiểu chương trình Sau Đại học hay thông tin nào khác ạ? 😊',
   sender: 'bot' as const,
 };
 
@@ -449,11 +454,11 @@ export default function Chatbot() {
               {/* Mascot */}
               <div className="relative z-10 w-full h-full rounded-full overflow-hidden flex items-center justify-center">
                 <Image
-                  src="/images/ufm_chatbot.png"
-                  alt="Chat"
-                  width={52}
-                  height={52}
-                  className="object-cover transition-transform duration-300 group-hover:scale-110"
+                  src="/images/cotham_chatbot.png"
+                  alt="Cô Thắm"
+                  width={62}
+                  height={62}
+                  className="w-full h-full object-cover scale-[1.15] transition-transform duration-300 group-hover:scale-[1.25]"
                 />
               </div>
               {/* Online indicator */}
@@ -492,15 +497,15 @@ export default function Chatbot() {
               <div className="flex items-center gap-3">
                 <div className="w-[34px] h-[34px] rounded-full overflow-hidden flex-shrink-0 ring-1 ring-black/[0.06]">
                   <Image
-                    src="/images/ufm_chatbot.png"
-                    alt="UFM"
+                    src="/images/cotham_chatbot.png"
+                    alt="Cô Thắm"
                     width={34}
                     height={34}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover scale-[1.15]"
                   />
                 </div>
                 <span className="text-[15px] font-bold text-[#1a1a1a] tracking-[-0.01em]">
-                  UFM Tư vấn
+                  Cô Thắm Tư vấn
                 </span>
               </div>
               <div className="flex items-center gap-1">
@@ -537,7 +542,7 @@ export default function Chatbot() {
                 </div>
                 <h3 className="text-[16px] font-bold text-[#1a1a1a] mb-1.5">Để lại thông tin liên hệ</h3>
                 <p className="text-[13px] text-[#666] mb-5 leading-relaxed">
-                  Trước khi bắt đầu, vui lòng cho phép Trợ lý biết tên của Quý khách để tiện xưng hô ạ.
+                  Trước khi bắt đầu, vui lòng cho Cô Thắm biết tên của bạn để tiện xưng hô nhé.
                 </p>
                 <div className="w-full flex flex-col gap-3">
                   <input
@@ -599,7 +604,7 @@ export default function Chatbot() {
                     >
                       {/* Mascot */}
                       <div className="w-[56px] h-[56px] rounded-2xl overflow-hidden ring-1 ring-black/[0.06] mb-5 shadow-sm">
-                        <Image src="/images/ufm_chatbot.png" alt="UFM" width={56} height={56} className="w-full h-full object-cover" />
+                        <Image src="/images/cotham_chatbot.png" alt="Cô Thắm" width={56} height={56} className="w-full h-full object-cover scale-[1.15]" />
                       </div>
 
                       <h3 className="text-[16px] font-bold text-[#1a1a1a] mb-1.5">
@@ -645,9 +650,9 @@ export default function Chatbot() {
                   {msg.sender === 'bot' ? (
                     <div className="flex items-center gap-[6px] mb-[6px]">
                       <div className="w-[18px] h-[18px] rounded-full overflow-hidden flex-shrink-0 ring-1 ring-black/[0.04]">
-                        <Image src="/images/ufm_chatbot.png" alt="" width={18} height={18} className="w-full h-full object-cover" />
+                        <Image src="/images/cotham_chatbot.png" alt="" width={18} height={18} className="w-full h-full object-cover scale-[1.15]" />
                       </div>
-                      <span className="text-[11.5px] font-semibold text-[#666]">UFM</span>
+                      <span className="text-[11.5px] font-semibold text-[#666]">Cô Thắm</span>
                     </div>
                   ) : (
                     <span className="text-[11px] font-medium text-[#999] mb-[6px] mr-[2px] block">
@@ -679,9 +684,9 @@ export default function Chatbot() {
                 <div className="mb-4">
                   <div className="flex items-center gap-[6px] mb-[6px]">
                     <div className="w-[18px] h-[18px] rounded-full overflow-hidden flex-shrink-0 ring-1 ring-black/[0.04]">
-                      <Image src="/images/ufm_chatbot.png" alt="" width={18} height={18} className="w-full h-full object-cover" />
+                      <Image src="/images/cotham_chatbot.png" alt="" width={18} height={18} className="w-full h-full object-cover scale-[1.15]" />
                     </div>
-                    <span className="text-[11.5px] font-semibold text-[#666]">UFM</span>
+                    <span className="text-[11.5px] font-semibold text-[#666]">Cô Thắm</span>
                   </div>
                   <div className="inline-flex items-center gap-[5px] bg-[#F0F0F0] rounded-[16px] rounded-bl-[4px] px-[16px] py-[12px]">
                     <span className="w-[6px] h-[6px] rounded-full bg-[#3578E5] animate-[cbDot_1.4s_ease-in-out_infinite]" style={{ animationDelay: '0s' }} />
