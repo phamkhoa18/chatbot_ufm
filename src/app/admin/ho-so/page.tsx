@@ -9,7 +9,7 @@ export default function ProfilePage() {
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [loadingInit, setLoadingInit] = useState(true);
 
-  const [pwData, setPwData] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
+  const [pwData, setPwData] = useState({ newPassword: '', confirmPassword: '' });
   const [loadingPw, setLoadingPw] = useState(false);
 
   useEffect(() => {
@@ -61,12 +61,12 @@ export default function ProfilePage() {
       const res = await fetch('/api/admin/accounts/change-password', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ oldPassword: pwData.oldPassword, newPassword: pwData.newPassword })
+        body: JSON.stringify({ newPassword: pwData.newPassword })
       });
       const data = await res.json();
       if (data.success) {
         showToast.success('Đổi mật khẩu thành công!');
-        setPwData({ oldPassword: '', newPassword: '', confirmPassword: '' });
+        setPwData({ newPassword: '', confirmPassword: '' });
       } else {
         showToast.error(data.error || 'Lỗi đổi mật khẩu');
       }
@@ -132,13 +132,7 @@ export default function ProfilePage() {
             </h2>
           </div>
           <form onSubmit={handleChangePassword} className="p-6 space-y-4">
-            <div>
-              <label className="text-[12px] font-bold text-slate-600 uppercase tracking-wider block mb-2">Mật khẩu Cũ</label>
-              <div className="relative">
-                <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input type="password" required value={pwData.oldPassword} onChange={e => setPwData({...pwData, oldPassword: e.target.value})} className="w-full h-11 pl-10 pr-4 bg-white border border-slate-300 rounded-xl text-[14px] focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500" placeholder="••••••••" />
-              </div>
-            </div>
+
 
             <div>
               <label className="text-[12px] font-bold text-slate-600 uppercase tracking-wider block mb-2">Mật khẩu Mới</label>

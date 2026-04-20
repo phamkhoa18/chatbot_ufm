@@ -7,7 +7,7 @@ import { cookies } from 'next/headers';
 export async function PUT(req: Request) {
   try {
     await connectDB();
-    const { oldPassword, newPassword } = await req.json();
+    const { newPassword } = await req.json();
     
     // In nextjs 15 cookies() needs to be awaited if properties are used directly, but reading the sync `.get()` is fine historically, or await cookies().get()
     const cookieStore = await cookies();
@@ -20,11 +20,6 @@ export async function PUT(req: Request) {
     const admin = await Admin.findById(adminId);
     if (!admin) {
       return NextResponse.json({ success: false, error: 'Không tìm thấy tài khoản' }, { status: 404 });
-    }
-
-    const isMatch = await bcrypt.compare(oldPassword, admin.password);
-    if (!isMatch) {
-      return NextResponse.json({ success: false, error: 'Mật khẩu cũ không chính xác' }, { status: 400 });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
