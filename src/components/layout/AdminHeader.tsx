@@ -7,6 +7,7 @@ import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@radix-ui/react-tooltip'
 import { useNotifications } from './NotificationProvider'
+import { useRouter } from 'next/navigation'
 
 interface AdminHeaderProps {
   user?: any
@@ -41,6 +42,14 @@ export default function AdminHeader({ user, onMenuClick, onToggleSidebar, isSide
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isNotifOpen, setIsNotifOpen] = useState(false)
   const { notifications, unreadCount, loading, markAllRead } = useNotifications()
+  const router = useRouter()
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && searchQuery.trim()) {
+      router.push(`/admin/khach-hang-tiem-nang?search=${encodeURIComponent(searchQuery.trim())}`)
+    }
+  }
 
   return (
     <header className="h-[60px] bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 lg:px-6 flex items-center justify-between sticky top-0 z-10 transition-colors shrink-0">
@@ -78,6 +87,9 @@ export default function AdminHeader({ user, onMenuClick, onToggleSidebar, isSide
           <input
             type="text"
             placeholder="Tìm kiếm nhanh..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleSearch}
             className="bg-transparent border-none outline-none text-[14px] text-slate-700 w-full placeholder:text-slate-400"
           />
         </div>

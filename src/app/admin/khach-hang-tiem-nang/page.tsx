@@ -14,16 +14,28 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { showToast } from '@/lib/toast'
+import { useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 
-export default function LeadsPage() {
+function LeadsPageContent() {
+  const searchParams = useSearchParams()
   const [leads, setLeads] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(searchParams.get('search') || '')
   const [statusFilter, setStatusFilter] = useState('')
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [mounted, setMounted] = useState(false)
+
+  // Sync khi URL parameter thay đổi
+  useEffect(() => {
+    const q = searchParams.get('search')
+    if (q !== null && q !== search) {
+      setSearch(q)
+      setPage(1)
+    }
+  }, [searchParams])
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -334,5 +346,13 @@ export default function LeadsPage() {
         document.body
       )}
     </div>
+  )
+}
+
+export default function LeadsPage() {
+  return (
+    <Suspense fallback={<div className="p-14 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-[#005496]" /></div>}>
+      <LeadsPageContent />
+    </Suspense>
   )
 }
