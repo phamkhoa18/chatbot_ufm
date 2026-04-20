@@ -22,6 +22,7 @@ const ADMIN_NAV: NavItemType[] = [
   { label: 'Khách hàng tiềm năng', href: '/admin/khach-hang-tiem-nang', icon: 'Users' },
   { label: 'Kiểm soát dữ liệu AI', href: '/admin/ai-chatbot', icon: 'Database' },
   { label: 'Zalo OA Bot', href: '/admin/zalo-bot', icon: 'MessageCircle', badge: 'MỚI' },
+  { label: 'Quản trị Tài khoản', href: '/admin/tai-khoan', icon: 'ShieldAlert' },
   { label: 'Cài đặt hệ thống', href: '/admin/cai-dat', icon: 'Settings' },
 ]
 
