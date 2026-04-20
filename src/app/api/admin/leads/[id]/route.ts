@@ -3,14 +3,14 @@ import connectDB from '@/lib/db';
 import Lead from '@/models/Lead';
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export async function PUT(req: Request, { params }: RouteParams) {
   try {
-    const { id } = params;
+    const { id } = await params;
     if (!id) {
       return NextResponse.json({ success: false, error: 'Thiếu ID khách hàng' }, { status: 400 });
     }
@@ -42,7 +42,7 @@ export async function PUT(req: Request, { params }: RouteParams) {
 
 export async function DELETE(req: Request, { params }: RouteParams) {
   try {
-    const { id } = params;
+    const { id } = await params;
     if (!id) {
       return NextResponse.json({ success: false, error: 'Thiếu ID khách hàng' }, { status: 400 });
     }
