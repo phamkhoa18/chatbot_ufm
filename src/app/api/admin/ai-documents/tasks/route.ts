@@ -46,18 +46,26 @@ export async function GET(req: NextRequest) {
     }
 
     const res = await fetch(`${FASTAPI_URL}/api/v1/admin/tasks`, {
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: { 'Authorization': `Bearer ${token}` },
+      signal: AbortSignal.timeout(15_000),
     })
     
-    if (!res.ok) {
-      throw new Error('Lỗi fetch tasks từ FastAPI')
+    const rawText = await res.text()
+    let data: any
+    try {
+       data = JSON.parse(rawText)
+    } catch {
+       return NextResponse.json({ success: true, data: [] })
     }
 
-    const data = await res.json()
+    if (!res.ok) {
+      throw new Error(data.detail || 'Lỗi từ máy chủ AI')
+    }
+
     // data.tasks : list of { task_id, status, error, result... }
     return NextResponse.json({ success: true, data: data.tasks || [] })
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    return NextResponse.json({ success: true, data: [] })
   }
 }
 
@@ -85,8 +93,13 @@ export async function POST(req: NextRequest) {
       headers: { 'Authorization': `Bearer ${token}` },
     })
 
-    const data = await res.json()
-    return NextResponse.json({ success: true, data })
+    const rawText = await res.text()
+    try {
+      const data = JSON.parse(rawText)
+      return NextResponse.json({ success: true, data })
+    } catch {
+      return NextResponse.json({ success: false, error: 'Phản hồi từ FastAPI không hợp lệ' })
+    }
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }

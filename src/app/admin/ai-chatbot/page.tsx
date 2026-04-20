@@ -147,17 +147,22 @@ export default function AIChatbotAdminPage() {
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState('')
 
+  // ═══════ SAFE JSON PARSE — tránh crash khi Nginx trả HTML ═══════
+  const safeJson = useCallback(async (res: Response) => {
+    const text = await res.text()
+    try {
+      return JSON.parse(text)
+    } catch {
+      console.warn('Non-JSON response:', text.substring(0, 100))
+      return null
+    }
+  }, [])
+
   // ═══════ AUTH-AWARE FETCH — auto redirect to login on 401 ═══════
   const authFetch = useCallback(async (url: string, options?: RequestInit) => {
     const res = await fetch(url, options)
-    if (res.status === 401 || res.redirected) {
-      window.location.href = '/admin'
-      throw new Error('Session expired')
-    }
-    // Check if the response is HTML (redirect page) instead of JSON
-    const contentType = res.headers.get('content-type') || ''
-    if (!contentType.includes('application/json')) {
-      window.location.href = '/admin'
+    if (res.status === 401) {
+      window.location.href = '/login'
       throw new Error('Session expired')
     }
     return res
@@ -167,17 +172,17 @@ export default function AIChatbotAdminPage() {
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const [docRes, taskRes] = await Promise.all([
-        authFetch('/api/admin/ai-documents').then(r => r.json()),
-        authFetch('/api/admin/ai-documents/tasks').then(r => r.json()),
+      const [docRaw, taskRaw] = await Promise.all([
+        authFetch('/api/admin/ai-documents').then(r => safeJson(r)),
+        authFetch('/api/admin/ai-documents/tasks').then(r => safeJson(r)),
       ])
 
-      if (docRes.success && docRes.data) {
-        setVectorDocs(docRes.data.vectorDb || [])
-        setStats(docRes.data.stats || null)
+      if (docRaw?.success && docRaw.data) {
+        setVectorDocs(docRaw.data.vectorDb || [])
+        setStats(docRaw.data.stats || null)
       }
-      if (taskRes.success && taskRes.data) {
-        setTasks(taskRes.data)
+      if (taskRaw?.success && taskRaw.data) {
+        setTasks(taskRaw.data)
       }
     } catch (err: any) {
       if (err.message === 'Session expired') return // Already redirecting
@@ -185,18 +190,18 @@ export default function AIChatbotAdminPage() {
     } finally {
       setLoading(false)
     }
-  }, [authFetch])
+  }, [authFetch, safeJson])
 
   useEffect(() => {
     loadData()
     const timer = setInterval(async () => {
       try {
-        const taskRes = await authFetch('/api/admin/ai-documents/tasks').then(r => r.json())
-        if (taskRes.success && taskRes.data) setTasks(taskRes.data)
+        const taskRes = await authFetch('/api/admin/ai-documents/tasks').then(r => safeJson(r))
+        if (taskRes?.success && taskRes.data) setTasks(taskRes.data)
       } catch {}
     }, 8000)
     return () => clearInterval(timer)
-  }, [loadData, authFetch])
+  }, [loadData, authFetch, safeJson])
 
   // ═══════ FILTER ═══════
   const filteredDocs = vectorDocs.filter(doc => {

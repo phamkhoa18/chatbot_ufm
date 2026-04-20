@@ -44,7 +44,16 @@ export async function POST(req: NextRequest) {
       }),
     })
 
-    const data = await response.json()
+    const rawText = await response.text()
+    let data: any
+    try {
+      data = JSON.parse(rawText)
+    } catch {
+      return NextResponse.json(
+        { success: false, error: 'Phản hồi từ AI Backend không hợp lệ' },
+        { status: 502 }
+      )
+    }
 
     if (!response.ok) {
       return NextResponse.json(

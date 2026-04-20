@@ -96,7 +96,13 @@ export async function POST(req: NextRequest) {
           body: fastApiForm as any,
         })
         
-        const data = await response.json()
+        const rawText = await response.text()
+        let data: any
+        try {
+          data = JSON.parse(rawText)
+        } catch {
+          throw new Error(`AI Backend trả về lỗi (HTTP ${response.status}). Task có thể đã được queue — kiểm tra tab Tasks.`)
+        }
         
         if (!response.ok) {
           throw new Error(data.detail || 'Lỗi từ máy chủ AI')
@@ -142,18 +148,24 @@ export async function GET(req: NextRequest) {
         const [docsRes, statsRes] = await Promise.all([
           fetch(`${FASTAPI_URL}/api/v1/admin/documents`, {
             headers: { 'Authorization': `Bearer ${token}` },
+            signal: AbortSignal.timeout(15_000),
           }),
           fetch(`${FASTAPI_URL}/api/v1/admin/documents/stats`, {
             headers: { 'Authorization': `Bearer ${token}` },
+            signal: AbortSignal.timeout(15_000),
           }),
         ])
         
         if (docsRes.ok) {
-          const docsData = await docsRes.json()
-          vectorDbDocs = docsData.documents || []
+          try {
+            const docsData = JSON.parse(await docsRes.text())
+            vectorDbDocs = docsData.documents || []
+          } catch { /* skip */ }
         }
         if (statsRes.ok) {
-          vectorDbStats = await statsRes.json()
+          try {
+            vectorDbStats = JSON.parse(await statsRes.text())
+          } catch { /* skip */ }
         }
       } catch (err) {
         console.error('FastAPI documents fetch error:', err)

@@ -60,14 +60,21 @@ export async function GET(req: NextRequest) {
       { headers: { 'Authorization': `Bearer ${token}` } }
     )
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err.detail || 'Lỗi từ FastAPI')
+    const rawText = await res.text()
+    let data: any
+    try {
+      data = JSON.parse(rawText)
+    } catch {
+      return NextResponse.json({ success: false, error: 'Phản hồi từ FastAPI không hợp lệ' }, { status: 502 })
     }
 
-    const data = await res.json()
+    if (!res.ok) {
+      throw new Error(data.detail || 'Lỗi từ FastAPI')
+    }
+
     return NextResponse.json({ success: true, data })
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 }
+
