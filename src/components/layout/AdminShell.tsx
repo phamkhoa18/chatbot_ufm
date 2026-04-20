@@ -24,6 +24,20 @@ export default function AdminShell({ user = { name: 'Admin', role: 'ADMIN' }, ch
     return () => { document.body.style.overflow = 'unset' }
   }, [isMobileOpen])
 
+  useEffect(() => {
+    const originalFetch = window.fetch;
+    window.fetch = async (...args) => {
+      const response = await originalFetch(...args);
+      if (response.status === 401) {
+        window.location.href = '/login';
+      }
+      return response;
+    };
+    return () => {
+      window.fetch = originalFetch;
+    };
+  }, []);
+
   return (
     <NotificationProvider>
     <TooltipProvider delayDuration={200}>

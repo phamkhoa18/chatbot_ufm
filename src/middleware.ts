@@ -7,13 +7,19 @@ export function middleware(request: NextRequest) {
 
   const isAuthPage = pathname === '/login' || pathname === '/register';
   const isAdminPage = pathname.startsWith('/admin');
+  const isApiAdmin = pathname.startsWith('/api/admin');
 
-  // Chưa login mà vào /admin → đá về /login
-  if (!session && isAdminPage) {
-    return NextResponse.redirect(new URL('/login', request.url));
+  // Chưa login mà vào /admin
+  if (!session) {
+    if (isApiAdmin) {
+      return NextResponse.json({ success: false, error: 'Hết phiên đăng nhập' }, { status: 401 });
+    }
+    if (isAdminPage) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
   }
 
-  // Đã login mà vào /login hoặc /register → đá về /admin
+  // Đã login mà vào /login
   if (session && isAuthPage) {
     return NextResponse.redirect(new URL('/admin', request.url));
   }
@@ -22,5 +28,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/login', '/register'],
+  matcher: ['/admin/:path*', '/api/admin/:path*', '/login', '/register'],
 };
