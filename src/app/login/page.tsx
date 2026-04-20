@@ -132,11 +132,7 @@ export default function LoginPage() {
               )}
             </button>
             
-            <div className="pt-4 mt-6 border-t border-slate-100 text-center">
-              <Link href="/register" className="text-[13px] font-bold text-slate-500 hover:text-[#005496] transition-colors">
-                Chưa có tài khoản Quản trị? Đăng ký ngay
-              </Link>
-            </div>
+            {/* Removed register link */}
           </form>
         </div>
 

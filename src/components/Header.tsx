@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import {
   Phone, Mail, Globe, BookOpen, Monitor,
   Search, Menu, X,
-  MessageCircle,
+  MessageCircle, Lock
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -39,7 +39,6 @@ export default function Header() {
   const NAV_LINKS = [
     { label: 'Trang chủ', href: '/chat' },
     { label: 'Tư vấn AI', href: '/chat/create' },
-    { label: 'Quản trị', href: '/admin' },
   ];
 
   return (
@@ -70,6 +69,10 @@ export default function Header() {
             <span className="text-white/30">|</span>
             <a href="#" className="flex items-center gap-1.5 hover:text-white transition-colors">
               <BookOpen size={11} /> Thư viện
+            </a>
+            <span className="text-white/30">|</span>
+            <a href="/login" className="flex items-center gap-1.5 hover:text-white transition-colors">
+              <Lock size={11} /> Quản trị
             </a>
           </div>
         </div>
@@ -151,12 +154,9 @@ export default function Header() {
       {/* ── Mobile Full-Screen Menu ── */}
       <div
         className={`
-          fixed inset-0 top-[60px] bg-white/98 backdrop-blur-xl z-[90]
-          transition-all duration-300 lg:hidden
-          ${mobileOpen
-            ? 'opacity-100 pointer-events-auto translate-y-0'
-            : 'opacity-0 pointer-events-none -translate-y-4'
-          }
+          fixed inset-0 top-[60px] md:top-[68px] z-[90] bg-white lg:hidden
+          transition-transform duration-300 ease-in-out
+          ${mobileOpen ? 'translate-x-0' : 'translate-x-full'}
         `}
       >
         <div className="flex flex-col h-full">
@@ -183,13 +183,17 @@ export default function Header() {
               <MessageCircle size={18} />
               Bắt đầu Tư vấn Ngay
             </Link>
-            <div className="flex items-center justify-center gap-4 text-[12px] text-slate-500 font-medium pt-2">
+            <div className="flex items-center justify-center gap-3 text-[12px] text-slate-500 font-medium pt-2">
               <a href="tel:02838225048" className="flex items-center gap-1.5 hover:text-[#005496]">
                 <Phone size={12} /> (028) 3822 5048
               </a>
               <span className="text-slate-300">|</span>
               <a href="mailto:sdh@ufm.edu.vn" className="flex items-center gap-1.5 hover:text-[#005496]">
                 <Mail size={12} /> sdh@ufm.edu.vn
+              </a>
+              <span className="text-slate-300">|</span>
+              <a href="/login" className="flex items-center gap-1.5 hover:text-[#005496]">
+                <Lock size={12} /> Quản trị
               </a>
             </div>
           </div>
