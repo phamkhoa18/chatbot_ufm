@@ -415,9 +415,9 @@ export default function AIChatbotAdminPage() {
             className="flex items-center gap-2 px-3.5 py-2 text-[12px] font-bold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all disabled:opacity-50 shadow-sm">
             <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Đồng bộ
           </button>
-          <button onClick={() => setActiveTab('upload')}
+          <button onClick={() => setActiveTab('compose')}
             className="flex items-center gap-2 px-4 py-2 text-[12px] font-bold text-white bg-gradient-to-r from-[#005496] to-[#0068b8] rounded-lg hover:shadow-lg hover:shadow-[#005496]/20 transition-all active:scale-[0.98] shadow-md">
-            <Upload size={13} /> Nạp tài liệu
+            <PenLine size={13} /> Soạn nội dung
           </button>
         </div>
       </div>
@@ -469,7 +469,6 @@ export default function AIChatbotAdminPage() {
         <div className="flex items-center border-b border-slate-100 px-2 lg:px-4 bg-white">
           {[
             { key: 'vectordb', label: 'Tài liệu Hệ thống', icon: Database },
-            { key: 'upload', label: 'Nạp File Mới', icon: Upload },
             { key: 'compose', label: 'Soạn nội dung', icon: PenLine },
             { key: 'tasks', label: 'Tasks Pipeline', icon: Clock, badge: processingTasks.length },
           ].map(tab => (
@@ -596,94 +595,7 @@ export default function AIChatbotAdminPage() {
           </div>
         )}
 
-        {/* ═══════ UPLOAD TAB ═══════ */}
-        {activeTab === 'upload' && (
-          <div className="p-5 md:p-8 space-y-6">
-            <div onDragOver={e => e.preventDefault()} onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-slate-200 rounded-2xl p-8 md:p-12 text-center cursor-pointer hover:border-[#005496]/40 hover:bg-[#005496]/5 transition-all group">
-              <input ref={fileInputRef} type="file" accept=".md" multiple onChange={handleFileSelect} className="hidden" />
-              <div className="w-16 h-16 bg-gradient-to-br from-slate-50 to-white border border-slate-200/80 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:shadow-md group-hover:border-[#005496]/20 transition-all">
-                <Upload size={24} className="text-[#005496]" />
-              </div>
-              <p className="text-[14px] font-bold text-slate-800">Kéo thả file Markdown (.md) vào đây</p>
-              <p className="text-[12px] font-medium text-slate-500 mt-1">File sẽ được xử lý và nạp vào hệ thống để AI có thể đọc hiểu</p>
-            </div>
 
-            {uploadError && (
-              <div className="flex items-center gap-2 text-[12px] text-red-600 bg-red-50 px-4 py-3 rounded-xl font-bold border border-red-100">
-                <XCircle size={16} /> {uploadError}
-              </div>
-            )}
-            {uploadSuccess && (
-              <div className="flex items-center gap-2 text-[12px] text-emerald-700 bg-emerald-50 px-4 py-3 rounded-xl font-bold border border-emerald-100">
-                <CheckCircle2 size={16} /> {uploadSuccess}
-              </div>
-            )}
-
-            {uploadFiles.length > 0 && (
-              <div className="space-y-2 max-w-2xl mx-auto border border-slate-200 p-4 rounded-xl bg-slate-50/50">
-                <h3 className="text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-2 border-b border-slate-200 pb-2">
-                  File đính kèm ({uploadFiles.length})
-                </h3>
-                <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
-                  {uploadFiles.map((f, i) => (
-                    <div key={i} className="flex justify-between items-center bg-white px-3 py-2.5 rounded-lg border border-slate-200 shadow-sm">
-                      <div className="flex items-center gap-2">
-                        <FileText size={14} className="text-[#005496]" />
-                        <span className="text-[12px] font-semibold text-slate-700">{f.name}</span>
-                        <span className="text-[10px] text-slate-400 font-medium">{(f.size / 1024).toFixed(1)} KB</span>
-                      </div>
-                      <button onClick={() => removeFile(i)} className="text-slate-400 hover:text-red-500 transition-colors"><XCircle size={15} /></button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="grid gap-4 md:grid-cols-3 bg-slate-50/50 p-4 rounded-xl border border-slate-200 max-w-2xl mx-auto">
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">Cấp bậc đào tạo</label>
-                <Select value={uploadLevel} onValueChange={v => setUploadLevel(v)}>
-                  <SelectTrigger className="w-full h-9 rounded-lg border-slate-200 text-[12px] font-semibold bg-white">
-                    <SelectValue placeholder="Tự động (Auto)" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border shadow-md">
-                    <SelectItem value="auto">Tự động (Auto)</SelectItem>
-                    <SelectItem value="thac_si">Thạc sĩ</SelectItem>
-                    <SelectItem value="tien_si">Tiến sĩ</SelectItem>
-                    <SelectItem value="dai_hoc">Đại học</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">Tên ngành</label>
-                <input value={uploadProgram} onChange={e => setUploadProgram(e.target.value)}
-                  className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 outline-none focus:border-[#005496]"
-                  placeholder="Ex: CNTT, Marketing..." />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">Năm học</label>
-                <input value={uploadYear} onChange={e => setUploadYear(e.target.value)}
-                  className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 outline-none focus:border-[#005496]"
-                  placeholder="Ex: 2025-2026" />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">Link tham khảo (URL)</label>
-                <input value={uploadReferenceUrl} onChange={e => setUploadReferenceUrl(e.target.value)}
-                  className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 outline-none focus:border-[#005496]"
-                  placeholder="Ex: https://ufm.edu.vn/..." />
-              </div>
-            </div>
-
-            <div className="flex justify-center mt-5">
-              <button onClick={handleUpload} disabled={isUploading || uploadFiles.length === 0}
-                className="h-10 px-8 rounded-xl bg-gradient-to-r from-[#005496] to-[#0068b8] hover:shadow-lg hover:shadow-[#005496]/20 text-white font-bold text-[13px] shadow-md flex items-center gap-2 disabled:opacity-50 transition-all active:scale-[0.98]">
-                {isUploading ? <><Loader2 size={16} className="animate-spin" /> Đang xử lý...</> : <><Upload size={16} /> Bắt đầu nạp dữ liệu AI</>}
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* ═══════ COMPOSE TAB ═══════ */}
         {activeTab === 'compose' && (
