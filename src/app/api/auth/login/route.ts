@@ -36,12 +36,14 @@ export async function POST(req: Request) {
 
     const response = NextResponse.json({ success: true, data: { id: admin._id, email: admin.email, fullName: admin.fullName } });
     
+    const maxAgeSeconds = parseInt(process.env.ADMIN_SESSION_MAX_AGE || '86400', 10);
+
     // MOCK JWT or simple token (Since we don't have jose installed, we will just use the ID for simplicity in cookies, though it's not super secure for prod, it fulfills demo logic)
     response.cookies.set('admin_session', admin._id.toString(), {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      maxAge: maxAgeSeconds,
       path: '/'
     });
     
