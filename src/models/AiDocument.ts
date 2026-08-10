@@ -30,7 +30,7 @@ const aiDocumentSchema = new Schema<IAiDocument>(
     },
     programLevel: {
       type: String,
-      enum: ['thac_si', 'tien_si', 'dai_hoc', 'chung', ''],
+      enum: ['thac_si', 'tien_si', 'dai_hoc', 'chung', 'unknown', ''],
       default: '',
     },
     programName: {
@@ -70,6 +70,9 @@ const aiDocumentSchema = new Schema<IAiDocument>(
 )
 
 // Force completely new model compilation to bypass Node.js memory cache
-const AiDocument: Model<IAiDocument> = mongoose.models.AiDocumentFresh || mongoose.model<IAiDocument>('AiDocumentFresh', aiDocumentSchema)
+if (mongoose.models.AiDocumentFresh) {
+  delete mongoose.models.AiDocumentFresh;
+}
+const AiDocument: Model<IAiDocument> = mongoose.model<IAiDocument>('AiDocumentFresh', aiDocumentSchema)
 
 export default AiDocument

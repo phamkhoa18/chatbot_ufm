@@ -62,9 +62,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     return () => clearInterval(interval)
   }, [fetchNotifications])
 
-  const markAllRead = () => {
+  const markAllRead = async () => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })))
     setUnreadCount(0)
+    setBadges(prev => ({ ...prev, 'Khách hàng tiềm năng': 0 }))
+    try {
+      await fetch('/api/admin/notifications', { method: 'POST' })
+    } catch {}
   }
 
   return (

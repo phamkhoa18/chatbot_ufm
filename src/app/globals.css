@@ -3,6 +3,8 @@
 @theme inline {
   --color-background: #ffffff;
   --color-foreground: #0a0a0a;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #0f172a;
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --color-primary: #005496;
   --color-primary-foreground: #ffffff;
@@ -50,6 +52,14 @@ body {
 .cb-scroll::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 
 /* ═══ CHATBOT MARKDOWN ═══ */
+.chat-markdown p { margin-bottom: 0.75rem; line-height: 1.7; }
+.chat-markdown p:last-child { margin-bottom: 0; }
+.chat-markdown ul, .chat-markdown ol { margin-top: 0.5rem; margin-bottom: 0.75rem; padding-left: 0.25rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.chat-markdown li { line-height: 1.6; }
+.chat-markdown strong { color: #005496; font-weight: 600; }
+.chat-markdown a { color: #0284c7; text-decoration: underline; text-underline-offset: 3px; font-weight: 500; transition: opacity 0.2s; }
+.chat-markdown a:hover { opacity: 0.8; }
+
 .cb-md p:last-child { margin-bottom: 0; }
 .cb-md ul, .cb-md ol { padding-left: 0; }
 
@@ -80,20 +90,37 @@ body {
   }
 }
 
-/* ═══ STREAMING CURSOR — Blinking cursor while typing ═══ */
+/* ═══ STREAMING CURSOR — 3 Bouncing Dots while streaming response ═══ */
 .streaming-cursor {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.streaming-cursor::before,
+.streaming-cursor::after,
+.streaming-cursor-dot {
+  content: "";
   display: inline-block;
-  width: 2px;
-  height: 1em;
-  background: #3578E5;
-  border-radius: 1px;
-  margin-left: 2px;
-  vertical-align: text-bottom;
-  animation: streamingBlink 0.8s ease infinite;
+  width: 5px;
+  height: 5px;
+  background-color: #3578E5;
+  border-radius: 50%;
+  animation: streamingBounce 1.2s ease-in-out infinite;
+}
+.streaming-cursor::before {
+  animation-delay: 0s;
+}
+.streaming-cursor-dot {
+  animation-delay: 0.2s;
+}
+.streaming-cursor::after {
+  animation-delay: 0.4s;
 }
 
-@keyframes streamingBlink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
+@keyframes streamingBounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1.2); opacity: 1; }
 }
 

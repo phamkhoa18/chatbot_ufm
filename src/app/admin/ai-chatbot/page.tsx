@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import dynamic from 'next/dynamic'
 import {
   Bot, Upload, FileText, Trash2, Search,
@@ -97,7 +98,7 @@ function formatChars(chars: number) {
    MAIN PAGE
    ═══════════════════════════════════════ */
 export default function AIChatbotAdminPage() {
-  const [activeTab, setActiveTab] = useState<'vectordb' | 'upload' | 'compose' | 'tasks'>('vectordb')
+  const [activeTab, setActiveTab] = useState<'vectordb' | 'upload' | 'compose' | 'tasks' | 'search'>('vectordb')
   const [searchQuery, setSearchQuery] = useState('')
   const [filterLevel, setFilterLevel] = useState<string>('all')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
@@ -147,6 +148,15 @@ export default function AIChatbotAdminPage() {
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState('')
 
+  // Search & Embedding state
+  const [testQuery, setTestQuery] = useState('')
+  const [testResults, setTestResults] = useState<any>(null)
+  const [testLoading, setTestLoading] = useState(false)
+  const [embeddingStats, setEmbeddingStats] = useState<any>(null)
+  const [reindexing, setReindexing] = useState(false)
+  const [purging, setPurging] = useState(false)
+  const [showPurgeConfirm, setShowPurgeConfirm] = useState(false)
+
   // ═══════ SAFE JSON PARSE — tránh crash khi Nginx trả HTML ═══════
   const safeJson = useCallback(async (res: Response) => {
     const text = await res.text()
@@ -191,6 +201,24 @@ export default function AIChatbotAdminPage() {
       setLoading(false)
     }
   }, [authFetch, safeJson])
+
+  // ═══════ TEST SEARCH ═══════
+  const handleTestSearch = useCallback(async () => {
+    if (!testQuery.trim()) return
+    setTestLoading(true)
+    setTestResults(null)
+    try {
+      const res = await authFetch('/api/admin/knowledge/test-search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: testQuery, top_k: 10 }),
+      }).then(r => safeJson(r))
+      if (res?.success) setTestResults(res.data)
+    } catch (err) {
+      console.error('Test search error:', err)
+    }
+    setTestLoading(false)
+  }, [testQuery, authFetch, safeJson])
 
   useEffect(() => {
     loadData()
@@ -469,7 +497,9 @@ export default function AIChatbotAdminPage() {
         <div className="flex items-center border-b border-slate-100 px-2 lg:px-4 bg-white">
           {[
             { key: 'vectordb', label: 'Tài liệu Hệ thống', icon: Database },
+            { key: 'upload', label: 'Upload Tài liệu', icon: Upload },
             { key: 'compose', label: 'Soạn nội dung', icon: PenLine },
+            { key: 'search', label: 'Search & Vector', icon: Sparkles },
             { key: 'tasks', label: 'Tasks Pipeline', icon: Clock, badge: processingTasks.length },
           ].map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key as any)}
@@ -506,6 +536,7 @@ export default function AIChatbotAdminPage() {
                   <SelectItem value="thac_si">Thạc sĩ</SelectItem>
                   <SelectItem value="tien_si">Tiến sĩ</SelectItem>
                   <SelectItem value="dai_hoc">Đại học</SelectItem>
+                  <SelectItem value="chung">Thông tin chung</SelectItem>
                 </SelectContent>
               </Select>
               <span className="text-[11px] font-bold text-slate-400">{filteredDocs.length} kết quả</span>
@@ -597,6 +628,175 @@ export default function AIChatbotAdminPage() {
 
 
 
+
+        {/* ═══════ UPLOAD TAB ═══════ */}
+        {activeTab === 'upload' && (
+          <div className="p-5 md:p-8 space-y-5">
+            {/* Header */}
+            <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+              <div className="w-10 h-10 bg-gradient-to-br from-[#005496] to-[#0284c7] rounded-xl flex items-center justify-center shadow-md shadow-[#005496]/20">
+                <Upload size={18} className="text-white" />
+              </div>
+              <div>
+                <h3 className="text-[15px] font-bold text-slate-800">Tải lên tệp tài liệu</h3>
+                <p className="text-[11px] text-slate-500 font-medium">Hỗ trợ các định dạng .md, .pdf, .txt, .docx, .xlsx để nạp dữ liệu vào AI</p>
+              </div>
+            </div>
+
+            {/* Alerts */}
+            {uploadError && (
+              <div className="flex items-center gap-2 text-[12px] text-red-600 bg-red-50 px-4 py-3 rounded-xl font-bold border border-red-100">
+                <XCircle size={16} /> {uploadError}
+              </div>
+            )}
+            {uploadSuccess && (
+              <div className="flex items-center gap-2 text-[12px] text-emerald-700 bg-emerald-50 px-4 py-3 rounded-xl font-bold border border-emerald-100">
+                <CheckCircle2 size={16} className="shrink-0" /> {uploadSuccess}
+              </div>
+            )}
+
+            {/* Dropzone */}
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-slate-200 hover:border-[#005496] bg-slate-50/50 hover:bg-slate-50 rounded-2xl p-8 text-center cursor-pointer transition-all group"
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".md,.pdf,.txt,.docx,.xlsx"
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files) {
+                    setUploadFiles(Array.from(e.target.files))
+                  }
+                }}
+              />
+              <div className="w-14 h-14 bg-white border border-slate-200/80 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-sm group-hover:scale-110 group-hover:border-[#005496]/30 transition-all">
+                <Upload size={24} className="text-slate-400 group-hover:text-[#005496] transition-colors" />
+              </div>
+              <p className="text-[13px] font-bold text-slate-700">Kéo thả tệp vào đây hoặc <span className="text-[#005496]">duyệt từ máy tính</span></p>
+              <p className="text-[11px] text-slate-400 font-medium mt-1">Hỗ trợ Markdown (.md), PDF (.pdf), Text (.txt), Word (.docx), Excel (.xlsx)</p>
+            </div>
+
+            {/* File List */}
+            {uploadFiles.length > 0 && (
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-slate-600 block">Các tệp đã chọn ({uploadFiles.length})</label>
+                <div className="space-y-1.5 max-h-[180px] overflow-y-auto pr-1">
+                  {uploadFiles.map((f, i) => (
+                    <div key={i} className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200/80 text-[12px]">
+                      <div className="flex items-center gap-2 font-semibold text-slate-700 truncate">
+                        <FileText size={14} className="text-[#005496] shrink-0" />
+                        <span className="truncate">{f.name}</span>
+                        <span className="text-[10px] text-slate-400 font-normal">({(f.size / 1024).toFixed(1)} KB)</span>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setUploadFiles(prev => prev.filter((_, idx) => idx !== i))
+                        }}
+                        className="text-slate-400 hover:text-red-500 p-1 rounded-lg hover:bg-red-50 transition-colors"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Metadata inputs */}
+            <div className="grid gap-4 md:grid-cols-4 bg-slate-50/50 p-4 rounded-xl border border-slate-200">
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">Cấp bậc đào tạo</label>
+                <Select value={uploadLevel} onValueChange={v => setUploadLevel(v)}>
+                  <SelectTrigger className="w-full h-9 rounded-lg border-slate-200 text-[12px] font-semibold bg-white">
+                    <SelectValue placeholder="Tự động (Auto)" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border shadow-md">
+                    <SelectItem value="auto">Tự động (Auto)</SelectItem>
+                    <SelectItem value="thac_si">Thạc sĩ</SelectItem>
+                    <SelectItem value="tien_si">Tiến sĩ</SelectItem>
+                    <SelectItem value="dai_hoc">Đại học</SelectItem>
+                    <SelectItem value="chung">Thông tin chung</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">Tên ngành</label>
+                <input value={uploadProgram} onChange={e => setUploadProgram(e.target.value)}
+                  className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 outline-none focus:border-[#005496]"
+                  placeholder="Ex: Luật Kinh tế, Marketing..." />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">Năm học</label>
+                <input value={uploadYear} onChange={e => setUploadYear(e.target.value)}
+                  className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 outline-none focus:border-[#005496]"
+                  placeholder="Ex: 2025-2026" />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">Link tham khảo (URL)</label>
+                <input value={uploadReferenceUrl} onChange={e => setUploadReferenceUrl(e.target.value)}
+                  className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 outline-none focus:border-[#005496]"
+                  placeholder="Ex: https://ufm.edu.vn/..." />
+              </div>
+            </div>
+
+            {/* Submit */}
+            <div className="flex items-center justify-between pt-2">
+              <span className="text-[11px] text-slate-400 font-medium">Tệp tải lên sẽ được tự động chuyển đổi sang Markdown & nạp vào VectorDB</span>
+              <button
+                onClick={async () => {
+                  if (uploadFiles.length === 0) {
+                    setUploadError('Vui lòng chọn ít nhất 1 tệp để nạp.')
+                    return
+                  }
+                  setIsUploading(true)
+                  setUploadError('')
+                  setUploadSuccess('')
+                  try {
+                    const formData = new FormData()
+                    uploadFiles.forEach(f => formData.append('files', f))
+                    if (uploadLevel) formData.append('program_level', uploadLevel)
+                    if (uploadProgram) formData.append('program_name', uploadProgram)
+                    if (uploadYear) formData.append('academic_year', uploadYear)
+                    if (uploadReferenceUrl) formData.append('reference_url', uploadReferenceUrl)
+
+                    const res = await fetch('/api/admin/ai-documents', {
+                      method: 'POST',
+                      body: formData,
+                    })
+                    const json = await res.json()
+                    if (!json.success) throw new Error(json.error || 'Lỗi tải tệp')
+
+                    setUploadSuccess(`✅ Đã nạp thành công ${uploadFiles.length} tệp vào Hệ thống AI!`)
+                    setUploadFiles([])
+                    setUploadLevel('')
+                    setUploadProgram('')
+                    setUploadYear('')
+                    setUploadReferenceUrl('')
+                    loadData()
+                    setTimeout(() => setActiveTab('tasks'), 2000)
+                  } catch (err: any) {
+                    setUploadError(err.message)
+                  } finally {
+                    setIsUploading(false)
+                  }
+                }}
+                disabled={isUploading || uploadFiles.length === 0}
+                className="h-10 px-8 rounded-xl bg-gradient-to-r from-[#005496] to-[#0068b8] hover:shadow-lg hover:shadow-[#005496]/20 text-white font-bold text-[13px] shadow-md flex items-center gap-2 disabled:opacity-50 transition-all active:scale-[0.98]"
+              >
+                {isUploading ? (
+                  <><Loader2 size={16} className="animate-spin" /> Đang tải lên & Nạp AI...</>
+                ) : (
+                  <><Upload size={16} /> Tải lên & Nạp dữ liệu</>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ═══════ COMPOSE TAB ═══════ */}
         {activeTab === 'compose' && (
           <div className="p-5 md:p-8 space-y-5">
@@ -674,6 +874,7 @@ export default function AIChatbotAdminPage() {
                     <SelectItem value="thac_si">Thạc sĩ</SelectItem>
                     <SelectItem value="tien_si">Tiến sĩ</SelectItem>
                     <SelectItem value="dai_hoc">Đại học</SelectItem>
+                    <SelectItem value="chung">Thông tin chung</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -842,10 +1043,144 @@ export default function AIChatbotAdminPage() {
             )}
           </div>
         )}
+
+        {/* ═══════ SEARCH & VECTOR TAB ═══════ */}
+        {activeTab === 'search' && (
+          <div className="p-5 space-y-6">
+            {/* Embedding Stats */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-[13px] font-black text-slate-800 flex items-center gap-2">
+                  <Layers size={15} className="text-[#005496]" /> Vector Database
+                </h3>
+                <div className="flex items-center gap-2">
+                  <button onClick={async () => {
+                    try {
+                      const res = await authFetch('/api/admin/knowledge/embeddings').then(r => safeJson(r))
+                      if (res?.success) setEmbeddingStats(res.data)
+                    } catch {}
+                  }} className="px-3 py-1.5 text-[10px] font-bold text-slate-600 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-all flex items-center gap-1">
+                    <RefreshCw size={11} /> Refresh
+                  </button>
+                  <button disabled={reindexing} onClick={async () => {
+                    setReindexing(true)
+                    try {
+                      const res = await authFetch('/api/admin/knowledge/embeddings', { method: 'POST' }).then(r => safeJson(r))
+                      if (res?.success) {
+                        setEmbeddingStats(null)
+                        const statsRes = await authFetch('/api/admin/knowledge/embeddings').then(r => safeJson(r))
+                        if (statsRes?.success) setEmbeddingStats(statsRes.data)
+                      }
+                    } catch {}
+                    setReindexing(false)
+                  }} className="px-3 py-1.5 text-[10px] font-bold text-white bg-[#005496] rounded-lg hover:bg-[#004377] transition-all flex items-center gap-1 disabled:opacity-50">
+                    {reindexing ? <Loader2 size={11} className="animate-spin" /> : <Zap size={11} />} {reindexing ? 'Đang Reindex...' : 'Reindex All'}
+                  </button>
+                  <button onClick={() => setShowPurgeConfirm(true)} className="px-3 py-1.5 text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-all flex items-center gap-1">
+                    <Trash2 size={11} /> Purge
+                  </button>
+                </div>
+              </div>
+              {embeddingStats ? (
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-gradient-to-br from-blue-50 to-white border border-blue-100 rounded-xl p-4">
+                    <div className="text-[10px] font-bold text-blue-500 uppercase">Collection</div>
+                    <div className="text-[15px] font-black text-slate-800 mt-1">{embeddingStats.collection || 'N/A'}</div>
+                  </div>
+                  <div className="bg-gradient-to-br from-violet-50 to-white border border-violet-100 rounded-xl p-4">
+                    <div className="text-[10px] font-bold text-violet-500 uppercase">Total Vectors</div>
+                    <div className="text-[15px] font-black text-slate-800 mt-1">{embeddingStats.count ?? 0}</div>
+                  </div>
+                  <div className="bg-gradient-to-br from-emerald-50 to-white border border-emerald-100 rounded-xl p-4">
+                    <div className="text-[10px] font-bold text-emerald-500 uppercase">Chunks Hash</div>
+                    <div className="text-[11px] font-mono font-bold text-slate-600 mt-1 truncate">{embeddingStats.chunks_hash || 'N/A'}</div>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={async () => {
+                  try {
+                    const res = await authFetch('/api/admin/knowledge/embeddings').then(r => safeJson(r))
+                    if (res?.success) setEmbeddingStats(res.data)
+                  } catch {}
+                }} className="w-full py-8 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 hover:border-[#005496] hover:text-[#005496] transition-all text-[12px] font-bold">
+                  Bấm để tải thống kê Vector DB
+                </button>
+              )}
+            </div>
+
+            {/* Test Search */}
+            <div>
+              <h3 className="text-[13px] font-black text-slate-800 flex items-center gap-2 mb-3">
+                <Search size={15} className="text-[#005496]" /> Test Search Quality
+              </h3>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 relative">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input value={testQuery} onChange={e => setTestQuery(e.target.value)}
+                    placeholder="Nhập câu hỏi để test tìm kiếm (VD: điều kiện xét tuyển thạc sĩ TCNH)"
+                    onKeyDown={e => e.key === 'Enter' && testQuery.trim() && handleTestSearch()}
+                    className="w-full pl-9 pr-4 py-2.5 text-[12px] font-medium bg-white border border-slate-200 rounded-lg outline-none focus:border-[#005496] focus:ring-1 focus:ring-[#005496]/20 transition-all" />
+                </div>
+                <button disabled={testLoading || !testQuery.trim()} onClick={handleTestSearch}
+                  className="px-5 py-2.5 text-[12px] font-bold text-white bg-gradient-to-r from-[#005496] to-[#0284c7] rounded-lg hover:shadow-lg hover:shadow-[#005496]/20 transition-all disabled:opacity-50 flex items-center gap-1.5 shrink-0">
+                  {testLoading ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />} Test Search
+                </button>
+              </div>
+              {testResults && (
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-bold text-slate-600">{testResults.total_results} kết quả — {testResults.latency_ms}ms</span>
+                    <span className="font-mono text-slate-400">Query: "{testResults.query}"</span>
+                  </div>
+                  {testResults.results?.map((r: any, i: number) => (
+                    <div key={i} className="bg-white border border-slate-200 rounded-lg p-3 hover:border-[#005496]/30 transition-all">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[11px] font-bold text-[#005496]">#{i + 1} — Score: {r.score}</span>
+                        <span className="text-[10px] font-mono text-slate-400 bg-slate-50 px-2 py-0.5 rounded">{r.source}</span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 leading-relaxed">{r.content}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Purge Confirm */}
+            {showPurgeConfirm && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowPurgeConfirm(false)}>
+                <div onClick={e => e.stopPropagation()} className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm mx-4">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center">
+                      <AlertCircle size={20} className="text-red-500" />
+                    </div>
+                    <div>
+                      <h4 className="text-[14px] font-black text-slate-800">Xóa toàn bộ Vector?</h4>
+                      <p className="text-[11px] text-slate-500">Hành động này không thể hoàn tác. Cần reindex sau khi purge.</p>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button onClick={() => setShowPurgeConfirm(false)} className="px-4 py-2 text-[12px] font-bold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-all">Hủy</button>
+                    <button disabled={purging} onClick={async () => {
+                      setPurging(true)
+                      try {
+                        await authFetch('/api/admin/knowledge/embeddings', { method: 'DELETE' })
+                        setEmbeddingStats(null)
+                      } catch {}
+                      setPurging(false)
+                      setShowPurgeConfirm(false)
+                    }} className="px-4 py-2 text-[12px] font-bold text-white bg-red-500 rounded-lg hover:bg-red-600 transition-all disabled:opacity-50 flex items-center gap-1">
+                      {purging ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />} Xác nhận Purge
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ═══════ DOCUMENT DETAIL MODAL ═══════ */}
-      {detailSource && (
+      {detailSource && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={closeDetail}>
           <div onClick={e => e.stopPropagation()}
             className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col animate-in zoom-in-95 fade-in duration-200 overflow-hidden">
@@ -930,7 +1265,7 @@ export default function AIChatbotAdminPage() {
                             </div>
                           )}
                           <p className="text-[11px] font-semibold text-slate-700 line-clamp-2">
-                            {chunk.section_name || chunk.content_preview.substring(0, 120) + '...'}
+                            {chunk.section_name || (chunk.content_preview || chunk.content || '').substring(0, 120) + '...'}
                           </p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
@@ -1007,10 +1342,10 @@ export default function AIChatbotAdminPage() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* ═══════ DELETE MODAL ═══════ */}
-      {showDeleteConfirm && (
+      {showDeleteConfirm && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowDeleteConfirm(null)}>
           <div onClick={e => e.stopPropagation()} className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm mx-4 w-full animate-in zoom-in-95 duration-200">
             <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center mx-auto mb-4">
@@ -1030,12 +1365,12 @@ export default function AIChatbotAdminPage() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* ═══════ EDIT MODAL ═══════ */}
-      {editSource && (
+      {editSource && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in transition-all">
-          <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95">
+          <div className="bg-white rounded-2xl w-[95vw] h-[95vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95">
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50 shrink-0">
               <div className="flex items-center gap-3">
@@ -1055,14 +1390,14 @@ export default function AIChatbotAdminPage() {
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 flex-1 overflow-auto bg-[#f8fafc]">
+            <div className="p-6 flex-1 overflow-auto bg-[#f8fafc] flex flex-col">
               {editError && (
-                <div className="mb-4 text-[12px] font-bold text-red-600 bg-red-50 p-3 rounded-xl border border-red-100">
+                <div className="mb-4 text-[12px] font-bold text-red-600 bg-red-50 p-3 rounded-xl border border-red-100 shrink-0">
                   ⚠️ {editError}
                 </div>
               )}
               {editLoading ? (
-                <div className="flex flex-col items-center justify-center h-[300px] text-slate-400 gap-3">
+                <div className="flex-1 flex flex-col items-center justify-center text-slate-400 gap-3">
                   <Loader2 size={32} className="animate-spin" />
                   <p className="text-[13px] font-medium">Đang lấy cấu trúc nội dung từ hệ thống AI...</p>
                 </div>
@@ -1070,7 +1405,7 @@ export default function AIChatbotAdminPage() {
                 <textarea
                   value={editContent}
                   onChange={(e) => setEditContent(e.target.value)}
-                  className="w-full h-full min-h-[400px] p-4 bg-white border border-slate-200 rounded-xl shadow-inner font-mono text-[13px] leading-relaxed text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 resize-none transition-all"
+                  className="flex-1 w-full h-full p-4 bg-white border border-slate-200 rounded-xl shadow-inner font-mono text-[13px] leading-relaxed text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 resize-none transition-all"
                   placeholder="Nội dung Markdown..."
                 />
               )}
@@ -1090,7 +1425,7 @@ export default function AIChatbotAdminPage() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
     </div>
   )

@@ -12,9 +12,11 @@ import {
   Lightbulb, Monitor, Loader2, Copy, PowerSquare,
   Check, ThumbsUp, ThumbsDown,
   ChevronDown, ExternalLink, Mail, UserCircle2, Phone,
-  Shield, FileSearch, Brain, Sparkles, Search, Database, Zap
+  Shield, FileSearch, Brain, Sparkles, Search, Database, Zap,
+  Briefcase, Award, CalendarDays, Compass
 } from 'lucide-react';
 import { showToast } from '@/lib/toast';
+import { chatStream, chatMessage, parseSSEData, extractSSEEvents, API_BASE } from '@/lib/api';
 
 /* ═══════════════════════════════════════
    Types
@@ -45,18 +47,18 @@ function getGreeting(): { text: string; highlight: string; emoji: string } {
    Suggestion chips
    ═══════════════════════════════════════ */
 const QUICK_SUGGESTIONS = [
-  { icon: GraduationCap, text: 'Chương trình đào tạo thạc sĩ', color: '#0284c7', bg: '#f0f9ff' },
-  { icon: BookOpen, text: 'Chương trình đào tạo tiến sĩ', color: '#7c3aed', bg: '#f5f3ff' },
-  { icon: Lightbulb, text: 'Cơ hội việc làm sau khi học thạc sĩ', color: '#f59e0b', bg: '#fffbeb' },
-  { icon: Calendar, text: 'Điều kiện và thời gian xét tuyển', color: '#ef4444', bg: '#fef2f2' },
+  { icon: GraduationCap, text: 'Chương trình đào tạo thạc sĩ', color: '#005496', bg: '#eff6ff', border: '#bfdbfe' },
+  { icon: Award, text: 'Chương trình đào tạo tiến sĩ', color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe' },
+  { icon: Briefcase, text: 'Cơ hội việc làm sau khi học thạc sĩ', color: '#059669', bg: '#ecfdf5', border: '#a7f3d0' },
+  { icon: CalendarDays, text: 'Điều kiện và thời gian xét tuyển', color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
 ];
 
 /* Body text color from user spec */
 const TEXT_COLOR = 'lab(6.02612% -1.05058 -4.10174)';
 
-const FASTAPI_CHAT_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || 'https://chatbot-ufm-api.vincode.xyz';
+const FASTAPI_CHAT_URL = API_BASE;
 
-console.log(FASTAPI_CHAT_URL);
+
 /* ═══════════════════════════════════════
    Markdown component overrides (ChatGPT-style)
    ═══════════════════════════════════════ */
@@ -80,13 +82,13 @@ const markdownComponents: Components = {
     <strong className="font-semibold" style={{ color: TEXT_COLOR }}>{children}</strong>
   ),
   em: ({ children }) => (
-    <em className="italic text-[#475569]">{children}</em>
+    <em className="italic font-semibold text-[#005496] border-b border-[#005496]/20">{children}</em>
   ),
   a: ({ href, children }) => {
     const text = typeof children === 'string' ? children : '';
     const isEmail = href?.startsWith('mailto:') || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text);
     const isViewDocument = href?.startsWith('/view-document');
-    
+
     let finalHref = href;
     if (isEmail && !href?.startsWith('mailto:')) {
       finalHref = `mailto:${text}`;
@@ -184,12 +186,11 @@ const markdownComponents: Components = {
    ═══════════════════════════════════════ */
 function TypingDots() {
   return (
-    <div className="flex items-center gap-2.5 py-1 px-1">
-      <div className="flex items-center gap-[5px]">
-        <span className="w-[7px] h-[7px] rounded-full bg-[#3578E5]" style={{ animation: 'chatDotBounce 1.4s ease-in-out infinite', animationDelay: '0s' }} />
-        <span className="w-[7px] h-[7px] rounded-full bg-[#5a9cf5]" style={{ animation: 'chatDotBounce 1.4s ease-in-out infinite', animationDelay: '0.2s' }} />
-        <span className="w-[7px] h-[7px] rounded-full bg-[#7eb8ff]" style={{ animation: 'chatDotBounce 1.4s ease-in-out infinite', animationDelay: '0.4s' }} />
-      </div>
+    <div className="inline-flex items-center gap-1.5 bg-[#f0f4f8] rounded-2xl px-4 py-2.5 shadow-sm">
+      <span className="text-[13px] font-semibold text-slate-600 mr-1">Cô Thắm đang soạn câu trả lời</span>
+      <span className="w-2 h-2 rounded-full bg-[#3578E5] animate-bounce" style={{ animationDelay: '0ms' }} />
+      <span className="w-2 h-2 rounded-full bg-[#5a9cf5] animate-bounce" style={{ animationDelay: '150ms' }} />
+      <span className="w-2 h-2 rounded-full bg-[#7eb8ff] animate-bounce" style={{ animationDelay: '300ms' }} />
     </div>
   );
 }
@@ -217,14 +218,15 @@ function BotContent({ content }: { content: string }) {
   let text = enhanceContent(content);
 
   // Mảng chứa các nguồn tài liệu bóc từ markdown
-  const documentSources: Array<{label: string, url: string}> = [];
-  
+  const documentSources: Array<{ label: string, url: string }> = [];
+
   // Regex tìm dòng "Nguồn tài liệu: [Label](url)" hoặc "Nguồn tài liệu tham khảo: [Label](url)"
   const sourceRegex = /Nguồn tài liệu(?: tham khảo)?:\s*\[(.*?)\]\((.*?)\)/gi;
-  
+
   text = text.replace(sourceRegex, (match, label, url) => {
-    const finalUrl = url.trim().startsWith('/view-document') 
-      ? `${FASTAPI_CHAT_URL}${url.trim()}` 
+    if (label.trim() === 'Kho dữ liệu Đào tạo UFM (Offline)') return '';
+    const finalUrl = url.trim().startsWith('/view-document')
+      ? `${FASTAPI_CHAT_URL}${url.trim()}`
       : url.trim();
     documentSources.push({ label: label.trim(), url: finalUrl });
     return ''; // Xóa khỏi text chính
@@ -235,18 +237,18 @@ function BotContent({ content }: { content: string }) {
     /\[Nguồn(?:\s*\d*)?(?:\s*[—:–]\s*)?([^\]]+)\](?:\(([^)]+)\))?/g,
     (match, label: string, url?: string) => {
       if (url) {
-        const finalUrl = url.trim().startsWith('/view-document') 
-          ? `${FASTAPI_CHAT_URL}${url.trim()}` 
+        const finalUrl = url.trim().startsWith('/view-document')
+          ? `${FASTAPI_CHAT_URL}${url.trim()}`
           : url.trim();
         return `[Nguồn: ${label.trim()}](${finalUrl})`;
       }
       return match;
     }
   );
-  
+
   // 1. Remove Nguồn tài liệu block followed by raw .md/.txt files
   text = text.replace(/Nguồn tài liệu(?: tham khảo)?\s*:?[\s\n]*([\w_-]+\.(?:md|txt)[\s\n]*)+/gi, '');
-  
+
   // 2. Remove any remaining raw internal file lines (e.g. thong_tin.md)
   text = text.replace(/^.*[\w_-]+\.(?:md|txt).*$/gm, '');
 
@@ -267,7 +269,7 @@ function BotContent({ content }: { content: string }) {
           {text}
         </ReactMarkdown>
       </div>
-      
+
       {documentSources.length > 0 && (
         <div className="mt-1 pt-2 border-t border-[#3578E5]/10 flex flex-col gap-1.5">
           <span className="text-[11px] font-semibold text-[#005496] flex items-center gap-1">
@@ -344,7 +346,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
             message.isStreaming ? (
               <span className="whitespace-pre-wrap" style={{ color: TEXT_COLOR }}>
                 {message.content}
-                <span className="streaming-cursor" />
+                <span className="streaming-cursor"><span className="streaming-cursor-dot" /></span>
               </span>
             ) : (
               <BotContent content={message.content} />
@@ -383,6 +385,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
    ═══════════════════════════════════════ */
 export default function ChatCreatePage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
@@ -429,20 +432,20 @@ export default function ChatCreatePage() {
     const sendSilentAnalysis = () => {
       const history = bgMessagesRef.current;
       const data = bgLeadDataRef.current;
-      
+
       if (bgHasLeadInfoRef.current && history.length > 1) {
         // Đánh dấu đã gửi để chống gửi đúp
         bgHasLeadInfoRef.current = false;
-        
+
         const cleanHistory = history.filter(m => !m.isTyping && m.content.trim()).map(m => ({ role: m.role, content: m.content }));
         const payload = JSON.stringify({ ...data, chatHistory: cleanHistory });
-        
+
         fetch(`/api/chat-leads/analyze`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: payload,
           keepalive: true
-        }).catch(() => {});
+        }).catch(() => { });
       }
     };
 
@@ -466,7 +469,7 @@ export default function ChatCreatePage() {
     if (savedLead) {
       try {
         setLeadFormData(JSON.parse(savedLead));
-      } catch (e) {}
+      } catch (e) { }
     }
 
     // Tải lại Session ID
@@ -486,9 +489,9 @@ export default function ChatCreatePage() {
           setShowResumePrompt(true);
           return;
         }
-      } catch (e) {}
+      } catch (e) { }
     }
-    
+
     setShowLeadModal(true);
   }, []);
 
@@ -650,6 +653,10 @@ export default function ChatCreatePage() {
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isLoading) return;
 
+    // Remove empty state from history
+    setMessages(prev => prev.filter(m => m.id !== 'empty'));
+    setSuggestions([]);
+
     const userMsg: ChatMessage = {
       id: `user-${Date.now()}`,
       role: 'user',
@@ -675,9 +682,9 @@ export default function ChatCreatePage() {
       .map(m => ({ role: m.role === 'bot' ? 'assistant' : 'user', content: m.content }));
 
     if (leadFormData.fullName) {
-      chatHistory.unshift({ 
-        role: 'user', 
-        content: `HỆ THỐNG: Người dùng tên là ${leadFormData.fullName}. Hãy xưng hô bằng tên thân thiện. SĐT: ${leadFormData.phone}. Email: ${leadFormData.email}.` 
+      chatHistory.unshift({
+        role: 'user',
+        content: `HỆ THỐNG: Người dùng tên là ${leadFormData.fullName}. Hãy xưng hô bằng tên thân thiện. SĐT: ${leadFormData.phone}. Email: ${leadFormData.email}.`
       });
     }
 
@@ -686,17 +693,9 @@ export default function ChatCreatePage() {
     renderedLenRef.current = 0;
 
     try {
-      const res = await fetch(`${FASTAPI_CHAT_URL}/api/v1/chat/stream`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: text.trim(),
-          chat_history: chatHistory,
-          session_id: sessionIdRef.current,
-        }),
-      });
+      const res = await chatStream(text.trim(), sessionIdRef.current);
 
-      if (!res.ok) throw new Error('Lỗi kết nối AI Backend');
+
 
       const reader = res.body?.getReader();
       if (!reader) throw new Error('Không thể đọc stream');
@@ -712,73 +711,37 @@ export default function ChatCreatePage() {
         if (done) break;
 
         sseBuffer += decoder.decode(value, { stream: true });
-        const lines = sseBuffer.split('\n');
-        sseBuffer = lines.pop() || '';
 
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
+        // Robust SSE parser: uses brace-depth tracking to handle \n\n inside JSON content
+        const { events, remaining } = extractSSEEvents(sseBuffer);
+        sseBuffer = remaining;
+
+        for (const eventStr of events) {
           try {
-            const event = JSON.parse(line.slice(6));
+            const event = JSON.parse(eventStr);
 
-            if (event.type === 'node') {
-              setMessages(prev => prev.map(m =>
-                m.id === typingId
-                  ? { ...m, pipelineSteps: [...(m.pipelineSteps || []), event.label] }
-                  : m
-              ));
-            } else if (event.type === 'token') {
-              // ── Append to buffer (NOT to React state directly!) ──
+            if (event.done) {
+              if (event.sources && event.sources.length > 0) {
+                const sourcesMd = event.sources.map((s: any) => `\nNguồn tài liệu tham khảo: [${s.title}](${s.url})`).join('');
+                tokenBufferRef.current += `\n${sourcesMd}`;
+              }
+              if (event.suggestions) {
+                setSuggestions(event.suggestions);
+              }
+            } else if (event.content !== undefined) {
               tokenBufferRef.current += (event.content || '');
 
               if (!isStreamingTokens) {
-                // First token: replace typing indicator with streaming message
                 isStreamingTokens = true;
                 setMessages(prev => prev.map(m =>
                   m.id === typingId
                     ? { ...m, id: botMsgId, isTyping: false, isStreaming: true, content: '' }
                     : m
                 ));
-                // Start the smooth RAF render loop
                 startStreamingRaf(botMsgId);
               }
-              // Tokens just accumulate in the buffer — RAF loop handles rendering
-            } else if (event.type === 'done') {
-              responseSource = event.source || '';
-              responseIntent = event.intent || '';
-            } else if (event.type === 'result') {
-              // ── Full response (bypass: greetings, blocks, etc.) ──
-              // Vẫn dùng typing buffer + RAF để có hiệu ứng gõ từng chữ
-              const fullResponse = event.response || '';
-              responseSource = event.source || '';
-              responseIntent = event.intent || '';
-
-              if (fullResponse) {
-                tokenBufferRef.current = fullResponse;
-
-                if (!isStreamingTokens) {
-                  isStreamingTokens = true;
-                  setMessages(prev => prev.map(m =>
-                    m.id === typingId
-                      ? { ...m, id: botMsgId, isTyping: false, isStreaming: true, content: '' }
-                      : m
-                  ));
-                  startStreamingRaf(botMsgId);
-                }
-              } else {
-                // Fallback nếu response rỗng
-                const finalMsg: ChatMessage = {
-                  id: botMsgId,
-                  role: 'bot',
-                  content: 'Xin lỗi, mình không thể xử lý yêu cầu này.',
-                  timestamp: new Date(),
-                  source: responseSource,
-                  intent: responseIntent,
-                };
-                setMessages(prev => prev.filter(m => m.id !== typingId).concat(finalMsg));
-                isStreamingTokens = true;
-              }
-            } else if (event.type === 'error') {
-              const errContent = event.message || 'Xin lỗi, có lỗi xảy ra.';
+            } else if (event.error) {
+              const errContent = event.error || 'Xin lỗi, có lỗi xảy ra.';
               setMessages(prev => prev.filter(m => m.id !== typingId && m.id !== botMsgId).concat({
                 id: botMsgId,
                 role: 'bot',
@@ -788,7 +751,9 @@ export default function ChatCreatePage() {
               }));
               isStreamingTokens = true;
             }
-          } catch { }
+          } catch (e) {
+            console.warn('Lỗi parse SSE chunk:', eventStr, e);
+          }
         }
       }
 
@@ -823,23 +788,14 @@ export default function ChatCreatePage() {
           .filter(m => !m.isTyping)
           .slice(-20)
           .map(m => ({ role: m.role === 'bot' ? 'assistant' : 'user', content: m.content }));
-        const res = await fetch(`${FASTAPI_CHAT_URL}/api/v1/chat/message`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            query: text.trim(),
-            chat_history: chatHistory,
-            session_id: sessionIdRef.current,
-          }),
-        });
-        const data = await res.json();
+        const res = await chatMessage(text.trim(), sessionIdRef.current);
+        const data = res;
+        if (data.suggestions) setSuggestions(data.suggestions);
         const botMsg: ChatMessage = {
           id: `bot-${Date.now()}`,
           role: 'bot',
-          content: data.response || 'Xin lỗi, có lỗi xảy ra.',
+          content: data.answer || 'Xin lỗi, có lỗi xảy ra.',
           timestamp: new Date(),
-          source: data.source,
-          intent: data.intent,
         };
         setMessages(prev => prev.filter(m => m.id !== typingId).concat(botMsg));
       } catch {
@@ -869,7 +825,7 @@ export default function ChatCreatePage() {
     const history = messages;
     if (hasLeadInfo && history.length > 1) {
       bgHasLeadInfoRef.current = false; // Tránh gọi đúp
-      
+
       const cleanHistory = history.filter(m => !m.isTyping && m.content.trim()).map(m => ({ role: m.role, content: m.content }));
       const payload = JSON.stringify({ ...leadFormData, chatHistory: cleanHistory });
       fetch(`/api/chat-leads/analyze`, {
@@ -877,15 +833,16 @@ export default function ChatCreatePage() {
         headers: { 'Content-Type': 'application/json' },
         body: payload,
         keepalive: true
-      }).catch(() => {});
+      }).catch(() => { });
     }
 
     localStorage.removeItem('ufm_chatbot_messages');
     setMessages([]);
+    setSuggestions([]);
     setInput('');
     sessionIdRef.current = `web-${Date.now()}`;
     localStorage.setItem('ufm_chatbot_session_id', sessionIdRef.current);
-    
+
     // Reset trạng thái chat nhưng hiển thị lại form lấy thông tin (đã được lưu sẵn)
     setHasLeadInfo(false);
     setShowLeadModal(true);
@@ -903,14 +860,35 @@ export default function ChatCreatePage() {
           50% { opacity: 0; }
         }
         .streaming-cursor {
+          display: inline-flex;
+          align-items: center;
+          gap: 3px;
+          margin-left: 4px;
+          vertical-align: middle;
+        }
+        .streaming-cursor::before,
+        .streaming-cursor::after,
+        .streaming-cursor-dot {
+          content: "";
           display: inline-block;
-          width: 2.5px;
-          height: 1.1em;
-          background: linear-gradient(to bottom, #3578E5, #5E9BF0);
-          margin-left: 2px;
-          vertical-align: text-bottom;
-          animation: blink-cursor 0.75s ease-in-out infinite;
-          border-radius: 2px;
+          width: 5px;
+          height: 5px;
+          background-color: #3578E5;
+          border-radius: 50%;
+          animation: streamingBounce 1.2s ease-in-out infinite;
+        }
+        .streaming-cursor::before {
+          animation-delay: 0s;
+        }
+        .streaming-cursor-dot {
+          animation-delay: 0.2s;
+        }
+        .streaming-cursor::after {
+          animation-delay: 0.4s;
+        }
+        @keyframes streamingBounce {
+          0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+          40% { transform: scale(1.2); opacity: 1; }
         }
         @keyframes float-orb {
           0%, 100% { transform: translate(0, 0) scale(1); }
@@ -960,11 +938,11 @@ export default function ChatCreatePage() {
           {/* Prompt Modal */}
           <AnimatePresence>
             {showResumePrompt && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
               >
-                <motion.div 
+                <motion.div
                   initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }}
                   className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden"
                 >
@@ -977,26 +955,26 @@ export default function ChatCreatePage() {
                   <div className="p-6 space-y-4 text-center text-sm text-slate-700">
                     <p>Bạn có một đoạn chat chưa hoàn thành. Bạn muốn tiếp tục hay tạo đoạn chat mới?</p>
                     <div className="flex gap-3">
-                      <button 
+                      <button
                         className="flex-1 py-2 bg-slate-100 text-slate-700 rounded-lg font-bold hover:bg-slate-200 transition-all"
                         onClick={() => {
-                           localStorage.removeItem('ufm_chatbot_messages');
-                           setShowResumePrompt(false);
-                           setShowLeadModal(true);
+                          localStorage.removeItem('ufm_chatbot_messages');
+                          setShowResumePrompt(false);
+                          setShowLeadModal(true);
                         }}
                       >
                         Tạo mới
                       </button>
-                      <button 
+                      <button
                         className="flex-1 py-2 bg-[#005496] text-white rounded-lg font-bold hover:bg-[#00427a] transition-all"
                         onClick={() => {
-                           try {
-                             const savedMessages = localStorage.getItem('ufm_chatbot_messages');
-                             if (savedMessages) setMessages(JSON.parse(savedMessages));
-                           } catch (e) {}
-                           setHasLeadInfo(true);
-                           setShowResumePrompt(false);
-                           setShowLeadModal(false);
+                          try {
+                            const savedMessages = localStorage.getItem('ufm_chatbot_messages');
+                            if (savedMessages) setMessages(JSON.parse(savedMessages));
+                          } catch (e) { }
+                          setHasLeadInfo(true);
+                          setShowResumePrompt(false);
+                          setShowLeadModal(false);
                         }}
                       >
                         Tiếp tục
@@ -1011,11 +989,11 @@ export default function ChatCreatePage() {
           {/* CRM Modal */}
           <AnimatePresence>
             {showLeadModal && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
               >
-                <motion.div 
+                <motion.div
                   initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }}
                   className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
                 >
@@ -1035,55 +1013,55 @@ export default function ChatCreatePage() {
                         const { fullName, phone, email } = leadFormData;
                         if (!fullName.trim()) return showToast.error('Vui lòng nhập họ và tên của bạn.');
                         if (fullName.trim().length < 2) return showToast.error('Họ tên quá ngắn.');
-                        
+
                         if (!phone.trim()) return showToast.error('Vui lòng nhập số điện thoại.');
                         const phoneRegex = /(84|0[3|5|7|8|9])+([0-9]{8})\b/g;
                         if (!phoneRegex.test(phone.trim())) return showToast.error('Số điện thoại không đúng định dạng hợp lệ (VD: 0912345678).');
 
                         if (email.trim()) {
-                           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                           if (!emailRegex.test(email.trim())) return showToast.error('Địa chỉ email không hợp lệ.');
+                          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                          if (!emailRegex.test(email.trim())) return showToast.error('Địa chỉ email không hợp lệ.');
                         }
 
                         setIsLoading(true);
                         localStorage.setItem('ufm_chatbot_lead', JSON.stringify(leadFormData));
                         setTimeout(() => {
-                           setHasLeadInfo(true);
-                           setShowLeadModal(false);
-                           setIsLoading(false);
+                          setHasLeadInfo(true);
+                          setShowLeadModal(false);
+                          setIsLoading(false);
                         }, 500);
                       };
                       return (
                         <>
-                    <div>
-                      <label className="text-[13px] font-semibold text-slate-700 flex items-center gap-1.5 mb-1.5 ">Họ và tên *</label>
-                      <div className="relative">
-                        <UserCircle2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input type="text" value={leadFormData.fullName} onChange={e => setLeadFormData({...leadFormData, fullName: e.target.value})} onKeyDown={e => e.key === 'Enter' && submitLeadForm()} placeholder="Nguyễn Văn A" className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[14px] focus:ring-2 focus:ring-[#005496]/20 focus:border-[#005496] outline-none transition-all" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-[13px] font-semibold text-slate-700 flex items-center gap-1.5 mb-1.5">Số điện thoại *</label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input type="tel" value={leadFormData.phone} onChange={e => setLeadFormData({...leadFormData, phone: e.target.value})} onKeyDown={e => e.key === 'Enter' && submitLeadForm()} placeholder="09xxxx" className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[14px] focus:ring-2 focus:ring-[#005496]/20 focus:border-[#005496] outline-none transition-all" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-[13px] font-semibold text-slate-700 flex items-center gap-1.5 mb-1.5">Email liên hệ (Tùy chọn)</label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input type="email" value={leadFormData.email} onChange={e => setLeadFormData({...leadFormData, email: e.target.value})} onKeyDown={e => e.key === 'Enter' && submitLeadForm()} placeholder="email@example.com" className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[14px] focus:ring-2 focus:ring-[#005496]/20 focus:border-[#005496] outline-none transition-all" />
-                      </div>
-                    </div>
-                    <button 
-                      className="w-full py-2.5 mt-2 bg-[#005496] text-white rounded-lg font-bold text-[14px] hover:bg-[#00427a] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-                      onClick={submitLeadForm}
-                    >
-                      {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>Bắt đầu trò chuyện</span>}
-                      {!isLoading && <ArrowLeft className="w-4 h-4 rotate-180" />}
-                    </button>
-                    </>
+                          <div>
+                            <label className="text-[13px] font-semibold text-slate-700 flex items-center gap-1.5 mb-1.5 ">Họ và tên *</label>
+                            <div className="relative">
+                              <UserCircle2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                              <input type="text" value={leadFormData.fullName} onChange={e => setLeadFormData({ ...leadFormData, fullName: e.target.value })} onKeyDown={e => e.key === 'Enter' && submitLeadForm()} placeholder="Nguyễn Văn A" className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[14px] focus:ring-2 focus:ring-[#005496]/20 focus:border-[#005496] outline-none transition-all" />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-[13px] font-semibold text-slate-700 flex items-center gap-1.5 mb-1.5">Số điện thoại *</label>
+                            <div className="relative">
+                              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                              <input type="tel" value={leadFormData.phone} onChange={e => setLeadFormData({ ...leadFormData, phone: e.target.value })} onKeyDown={e => e.key === 'Enter' && submitLeadForm()} placeholder="09xxxx" className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[14px] focus:ring-2 focus:ring-[#005496]/20 focus:border-[#005496] outline-none transition-all" />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-[13px] font-semibold text-slate-700 flex items-center gap-1.5 mb-1.5">Email liên hệ (Tùy chọn)</label>
+                            <div className="relative">
+                              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                              <input type="email" value={leadFormData.email} onChange={e => setLeadFormData({ ...leadFormData, email: e.target.value })} onKeyDown={e => e.key === 'Enter' && submitLeadForm()} placeholder="email@example.com" className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[14px] focus:ring-2 focus:ring-[#005496]/20 focus:border-[#005496] outline-none transition-all" />
+                            </div>
+                          </div>
+                          <button
+                            className="w-full py-2.5 mt-2 bg-[#005496] text-white rounded-lg font-bold text-[14px] hover:bg-[#00427a] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                            onClick={submitLeadForm}
+                          >
+                            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>Bắt đầu trò chuyện</span>}
+                            {!isLoading && <ArrowLeft className="w-4 h-4 rotate-180" />}
+                          </button>
+                        </>
                       );
                     })()}
                   </div>
@@ -1137,21 +1115,26 @@ export default function ChatCreatePage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
-                className="grid grid-cols-2 gap-2.5 md:gap-3 max-w-xl w-full mb-7 md:mb-10 px-1 relative z-10"
+                className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl w-full mb-7 md:mb-10 px-1 relative z-10"
               >
                 {QUICK_SUGGESTIONS.map((s, i) => (
                   <motion.button
                     key={i}
                     onClick={() => sendMessage(s.text)}
                     disabled={isLoading}
-                    whileHover={{ y: -2 }}
-                    whileTap={{ scale: 0.97 }}
-                    className="group flex items-start gap-3 p-3.5 md:p-4 bg-white border border-[#e5e7eb] rounded-2xl text-left hover:border-[#d0e3f5] hover:shadow-[0_4px_20px_rgba(0,84,150,0.06)] transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none"
+                    whileHover={{ y: -3, scale: 1.01 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="group flex items-center gap-3.5 p-3.5 md:p-4 bg-white/90 backdrop-blur-md border border-slate-200 rounded-2xl text-left hover:border-[#005496]/40 hover:shadow-[0_8px_24px_rgba(0,84,150,0.08)] transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
                   >
-                    <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110" style={{ backgroundColor: s.bg, color: s.color }}>
-                      <s.icon size={16} />
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110 shadow-sm"
+                      style={{ backgroundColor: s.bg, color: s.color, border: `1px solid ${s.border}` }}
+                    >
+                      <s.icon size={18} strokeWidth={2.2} />
                     </div>
-                    <span className="text-[12px] md:text-[13px] font-medium leading-snug text-[#4b5563] group-hover:text-[#1f2937] transition-colors line-clamp-2">{s.text}</span>
+                    <span className="text-[13px] md:text-[14px] font-semibold leading-snug text-slate-700 group-hover:text-[#005496] transition-colors line-clamp-2">
+                      {s.text}
+                    </span>
                   </motion.button>
                 ))}
               </motion.div>
@@ -1245,7 +1228,12 @@ export default function ChatCreatePage() {
                   <Plus size={13} />
                   Chat mới
                 </button>
-                {QUICK_SUGGESTIONS.map((s, i) => (
+                {suggestions.length > 0 ? suggestions.map((s, i) => (
+                  <button key={i} onClick={() => sendMessage(s)} disabled={isLoading} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#3578E5] rounded-lg md:rounded-xl text-[12px] font-medium text-[#3578E5] whitespace-nowrap active:scale-95 hover:bg-[#f0f7ff] shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all flex-shrink-0 disabled:opacity-50 disabled:pointer-events-none">
+                    <Sparkles size={12} className="flex-shrink-0" />
+                    {s}
+                  </button>
+                )) : QUICK_SUGGESTIONS.map((s, i) => (
                   <button key={i} onClick={() => sendMessage(s.text)} disabled={isLoading} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#e5e7eb] rounded-lg md:rounded-xl text-[12px] font-medium text-[#6b7280] whitespace-nowrap active:scale-95 hover:border-[#3578E5]/30 hover:text-[#3578E5] shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all flex-shrink-0 disabled:opacity-50 disabled:pointer-events-none">
                     <s.icon size={12} style={{ color: s.color }} />
                     {s.text}

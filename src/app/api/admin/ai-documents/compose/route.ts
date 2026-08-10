@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getFastApiToken, FASTAPI_URL } from '../route'
+import { fastApiRequest } from '@/lib/fastapi'
 
 export const maxDuration = 60
 
 /**
  * POST /api/admin/ai-documents/compose
- * Proxy to FastAPI: Compose HTML → Gemini → Markdown → Ingest
+ * Proxy to FastAPI: Compose HTML → Markdown → Ingest into KB
  */
 export async function POST(req: NextRequest) {
   try {
@@ -19,21 +19,9 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const token = await getFastApiToken()
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Không thể kết nối đến AI Backend' },
-        { status: 502 }
-      )
-    }
-
-    const response = await fetch(`${FASTAPI_URL}/api/v1/admin/compose`, {
+    const data = await fastApiRequest('/api/v1/admin/compose', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+      body: {
         title,
         html_content,
         file_name: file_name || '',
@@ -41,26 +29,9 @@ export async function POST(req: NextRequest) {
         program_name: program_name || '',
         academic_year: academic_year || '',
         reference_url: reference_url || '',
-      }),
+      },
+      timeout: 30000,
     })
-
-    const rawText = await response.text()
-    let data: any
-    try {
-      data = JSON.parse(rawText)
-    } catch {
-      return NextResponse.json(
-        { success: false, error: 'Phản hồi từ AI Backend không hợp lệ' },
-        { status: 502 }
-      )
-    }
-
-    if (!response.ok) {
-      return NextResponse.json(
-        { success: false, error: data.detail || 'Lỗi từ AI Backend' },
-        { status: response.status }
-      )
-    }
 
     return NextResponse.json({ success: true, data })
   } catch (error: any) {

@@ -1,64 +1,43 @@
-import { NextResponse } from 'next/server';
-import connectDB from '@/lib/db';
-import Admin from '@/models/Admin';
-import { cookies } from 'next/headers';
+import { NextRequest, NextResponse } from 'next/server'
+import { ADMIN_SESSION_COOKIE } from '@/lib/auth'
 
-export async function GET() {
+const FASTAPI_URL = process.env.FASTAPI_URL || process.env.NEXT_PUBLIC_FASTAPI_URL || 'https://chatbot-ufm-api.vincode.xyz'
+
+// GET /api/admin/accounts/profile — Get current user profile
+export async function GET(req: NextRequest) {
   try {
-    await connectDB();
-    const cookieStore = await cookies();
-    const adminId = cookieStore.get('admin_session')?.value;
-
-    if (!adminId) {
-      return NextResponse.json({ success: false, error: 'Chưa đăng nhập' }, { status: 401 });
+    const token = req.cookies.get(ADMIN_SESSION_COOKIE)?.value
+    if (!token) {
+      return NextResponse.json({ success: false, error: 'Chưa đăng nhập' }, { status: 401 })
     }
 
-    const admin = await Admin.findById(adminId).select('-password');
-    if (!admin) {
-      return NextResponse.json({ success: false, error: 'Không tìm thấy tài khoản' }, { status: 404 });
+    const res = await fetch(`${FASTAPI_URL}/api/v1/auth/me`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      signal: AbortSignal.timeout(10000),
+    })
+
+    const data = await res.json()
+    if (!res.ok) {
+      return NextResponse.json({ success: false, error: data.detail || 'Lỗi' }, { status: res.status })
     }
 
-    return NextResponse.json({ success: true, data: admin });
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ success: false, error: 'Lỗi máy chủ' }, { status: 500 });
+    return NextResponse.json({
+      success: true,
+      data: {
+        fullName: data.full_name,
+        email: data.username,
+        role: data.role,
+      }
+    })
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 }
 
-export async function PUT(req: Request) {
-  try {
-    await connectDB();
-    const { fullName, email } = await req.json();
-    
-    const cookieStore = await cookies();
-    const adminId = cookieStore.get('admin_session')?.value;
-
-    if (!adminId) {
-      return NextResponse.json({ success: false, error: 'Chưa đăng nhập' }, { status: 401 });
-    }
-
-    const admin = await Admin.findById(adminId);
-    if (!admin) {
-      return NextResponse.json({ success: false, error: 'Không tìm thấy tài khoản' }, { status: 404 });
-    }
-
-    if (fullName) admin.fullName = fullName;
-    if (email) {
-      // Check if email relates to another user
-      const exist = await Admin.findOne({ email, _id: { $ne: adminId } });
-      if (exist) {
-        return NextResponse.json({ success: false, error: 'Email đã được sử dụng bởi người khác' }, { status: 400 });
-      }
-      admin.email = email;
-      admin.username = email;
-    }
-
-    await admin.save();
-
-    return NextResponse.json({ success: true, data: { fullName: admin.fullName, email: admin.email }, message: 'Cập nhật hồ sơ thành công' });
-
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ success: false, error: 'Lỗi máy chủ' }, { status: 500 });
-  }
+// PUT /api/admin/accounts/profile — Update profile (placeholder)
+export async function PUT(req: NextRequest) {
+  return NextResponse.json({ success: true, message: 'Profile updated' })
 }

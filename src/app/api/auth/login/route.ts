@@ -1,55 +1,50 @@
-import { NextResponse } from 'next/server';
-import connectDB from '@/lib/db';
-import Admin from '@/models/Admin';
-import bcrypt from 'bcryptjs';
+import { NextResponse } from 'next/server'
+import { ADMIN_SESSION_COOKIE, SESSION_COOKIE_OPTIONS } from '@/lib/auth'
+
+const FASTAPI_URL = process.env.FASTAPI_URL || process.env.NEXT_PUBLIC_FASTAPI_URL || 'https://chatbot-ufm-api.vincode.xyz'
 
 export async function POST(req: Request) {
   try {
-    await connectDB();
-    const { username, password } = await req.json();
-    
-    // Auto-seed default user if not exists
-    const seedEmail = 'adminufm@gmail.com';
-    let defaultAdmin = await Admin.findOne({ email: seedEmail });
-    if (!defaultAdmin) {
-      const hash = await bcrypt.hash('12345678', 10);
-      defaultAdmin = await Admin.create({
-        fullName: 'Admin Thạc Sĩ UFM',
-        email: seedEmail,
-        password: hash,
-        role: 'superadmin'
-      });
+    const { username, password } = await req.json()
+
+    if (!username || !password) {
+      return NextResponse.json(
+        { success: false, error: 'Vui lòng nhập đầy đủ thông tin' },
+        { status: 400 }
+      )
     }
 
-    const admin = await Admin.findOne({ 
-      $or: [{ email: username }, { username: username }] 
-    });
+    // Proxy login to FastAPI backend
+    const res = await fetch(`${FASTAPI_URL}/api/v1/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+      signal: AbortSignal.timeout(10000),
+    })
 
-    if (!admin) {
-      return NextResponse.json({ success: false, error: 'Tài khoản không tồn tại' }, { status: 401 });
+    const data = await res.json()
+
+    if (!res.ok || !data.success) {
+      return NextResponse.json(
+        { success: false, error: data.detail || 'Sai thông tin đăng nhập' },
+        { status: 401 }
+      )
     }
 
-    const isMatch = await bcrypt.compare(password, admin.password);
-    if (!isMatch) {
-      return NextResponse.json({ success: false, error: 'Mật khẩu không chính xác' }, { status: 401 });
-    }
+    // Store JWT in httpOnly cookie
+    const response = NextResponse.json({
+      success: true,
+      data: data.user,
+    })
 
-    const response = NextResponse.json({ success: true, data: { id: admin._id, email: admin.email, fullName: admin.fullName } });
-    
-    const maxAgeSeconds = parseInt(process.env.ADMIN_SESSION_MAX_AGE || '86400', 10);
+    response.cookies.set(ADMIN_SESSION_COOKIE, data.access_token, SESSION_COOKIE_OPTIONS)
 
-    // MOCK JWT or simple token (Since we don't have jose installed, we will just use the ID for simplicity in cookies, though it's not super secure for prod, it fulfills demo logic)
-    response.cookies.set('admin_session', admin._id.toString(), {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: maxAgeSeconds,
-      path: '/'
-    });
-    
-    return response;
-  } catch (error) {
-    console.error('Login error', error);
-    return NextResponse.json({ success: false, error: 'Lỗi máy chủ' }, { status: 500 });
+    return response
+  } catch (error: any) {
+    console.error('Login error:', error)
+    return NextResponse.json(
+      { success: false, error: 'Không thể kết nối đến hệ thống xác thực' },
+      { status: 502 }
+    )
   }
 }

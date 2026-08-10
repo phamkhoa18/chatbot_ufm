@@ -1,35 +1,46 @@
-import { NextResponse } from 'next/server';
-import connectDB from '@/lib/db';
-import Admin from '@/models/Admin';
-import bcrypt from 'bcryptjs';
-import { cookies } from 'next/headers';
+import { NextRequest, NextResponse } from 'next/server'
+import { ADMIN_SESSION_COOKIE } from '@/lib/auth'
 
-export async function PUT(req: Request) {
+const FASTAPI_URL = process.env.FASTAPI_URL || process.env.NEXT_PUBLIC_FASTAPI_URL || 'https://chatbot-ufm-api.vincode.xyz'
+
+// PUT /api/admin/accounts/change-password — Change own password
+export async function PUT(req: NextRequest) {
   try {
-    await connectDB();
-    const { newPassword } = await req.json();
-    
-    // In nextjs 15 cookies() needs to be awaited if properties are used directly, but reading the sync `.get()` is fine historically, or await cookies().get()
-    const cookieStore = await cookies();
-    const adminId = cookieStore.get('admin_session')?.value;
-
-    if (!adminId) {
-      return NextResponse.json({ success: false, error: 'Chưa đăng nhập' }, { status: 401 });
+    const token = req.cookies.get(ADMIN_SESSION_COOKIE)?.value
+    if (!token) {
+      return NextResponse.json({ success: false, error: 'Chưa đăng nhập' }, { status: 401 })
     }
 
-    const admin = await Admin.findById(adminId);
-    if (!admin) {
-      return NextResponse.json({ success: false, error: 'Không tìm thấy tài khoản' }, { status: 404 });
+    const { currentPassword, newPassword } = await req.json()
+
+    if (!currentPassword || !newPassword) {
+      return NextResponse.json({ success: false, error: 'Vui lòng nhập đầy đủ' }, { status: 400 })
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    admin.password = hashedPassword;
-    await admin.save();
+    const res = await fetch(`${FASTAPI_URL}/api/v1/auth/change-password`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword,
+      }),
+      signal: AbortSignal.timeout(10000),
+    })
 
-    return NextResponse.json({ success: true, message: 'Đổi mật khẩu thành công' });
+    const data = await res.json()
 
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ success: false, error: 'Lỗi máy chủ' }, { status: 500 });
+    if (!res.ok) {
+      return NextResponse.json(
+        { success: false, error: data.detail || 'Lỗi đổi mật khẩu' },
+        { status: res.status }
+      )
+    }
+
+    return NextResponse.json({ success: true, message: 'Đổi mật khẩu thành công' })
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 }

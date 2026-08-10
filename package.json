@@ -25,6 +25,7 @@
     "framer-motion": "^12.38.0",
     "jodit": "^4.12.2",
     "jodit-react": "^5.3.21",
+    "jose": "^6.2.8",
     "lucide-react": "^1.8.0",
     "mongoose": "^9.4.1",
     "next": "16.2.3",

@@ -1,41 +1,78 @@
-import { NextResponse } from 'next/server';
-import connectDB from '@/lib/db';
-import Admin from '@/models/Admin';
-import bcrypt from 'bcryptjs';
+import { NextRequest, NextResponse } from 'next/server'
+import { ADMIN_SESSION_COOKIE } from '@/lib/auth'
 
-export async function GET() {
-  try {
-    await connectDB();
-    const admins = await Admin.find().select('-password').sort({ createdAt: -1 });
-    return NextResponse.json({ success: true, data: admins }, { status: 200 });
-  } catch (error) {
-    return NextResponse.json({ success: false, error: 'Lỗi tải danh sách người dùng' }, { status: 500 });
+const FASTAPI_URL = process.env.FASTAPI_URL || process.env.NEXT_PUBLIC_FASTAPI_URL || 'https://chatbot-ufm-api.vincode.xyz'
+
+function getAuthHeaders(req: NextRequest): Record<string, string> {
+  const token = req.cookies.get(ADMIN_SESSION_COOKIE)?.value || ''
+  return {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json',
   }
 }
 
-export async function POST(req: Request) {
+// GET /api/admin/accounts — List all admin users
+export async function GET(req: NextRequest) {
   try {
-    await connectDB();
-    const { fullName, email, password } = await req.json();
-
-    const existingAdmin = await Admin.findOne({ email });
-    if (existingAdmin) {
-      return NextResponse.json({ success: false, error: 'Email hoặc tên đăng nhập đã tồn tại' }, { status: 400 });
+    const res = await fetch(`${FASTAPI_URL}/api/v1/auth/users`, {
+      headers: getAuthHeaders(req),
+      signal: AbortSignal.timeout(10000),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      return NextResponse.json({ success: false, error: data.detail || 'Lỗi' }, { status: res.status })
     }
+    return NextResponse.json(data)
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+  }
+}
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+// POST /api/admin/accounts — Create new admin user
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json()
+    const payload = {
+      username: body.email || body.username,
+      password: body.password,
+      full_name: body.fullName || body.full_name || body.email,
+      role: body.role || 'admin',
+    }
+    const res = await fetch(`${FASTAPI_URL}/api/v1/auth/users`, {
+      method: 'POST',
+      headers: getAuthHeaders(req),
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(10000),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      return NextResponse.json({ success: false, error: data.detail || 'Lỗi tạo tài khoản' }, { status: res.status })
+    }
+    return NextResponse.json(data)
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+  }
+}
 
-    const newAdmin = await Admin.create({
-      fullName,
-      email,
-      username: email, // use email as username
-      password: hashedPassword,
-      role: 'admin'
-    });
-
-    return NextResponse.json({ success: true, message: 'Tạo tài khoản thành công' });
-
-  } catch (error) {
-    return NextResponse.json({ success: false, error: 'Lỗi máy chủ' }, { status: 500 });
+// DELETE /api/admin/accounts — Delete admin user
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url)
+    const userId = searchParams.get('id')
+    if (!userId) {
+      return NextResponse.json({ success: false, error: 'Missing user id' }, { status: 400 })
+    }
+    const res = await fetch(`${FASTAPI_URL}/api/v1/auth/users/${userId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(req),
+      signal: AbortSignal.timeout(10000),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      return NextResponse.json({ success: false, error: data.detail || 'Lỗi xóa' }, { status: res.status })
+    }
+    return NextResponse.json(data)
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 }

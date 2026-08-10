@@ -54,3 +54,13 @@ export async function GET() {
     );
   }
 }
+
+export async function POST() {
+  try {
+    await connectDB();
+    await Lead.updateMany({ isRead: false }, { $set: { isRead: true } });
+    return NextResponse.json({ success: true, message: 'Đã đánh dấu đọc tất cả' }, { status: 200 });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: 'Lỗi cập nhật' }, { status: 500 });
+  }
+}

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Users, TrendingUp, MessageSquare, Loader2, Star, Clock,
-  BarChart3, ThumbsUp, ArrowUpRight, Activity, Zap
+  BarChart3, ThumbsUp, ArrowUpRight, Activity, Zap, Wifi, WifiOff, Trash2
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -20,6 +20,8 @@ export default function AdminDashboard() {
   const [recentSessions, setRecentSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState(30);
+  const [health, setHealth] = useState<any>(null);
+  const [clearingCache, setClearingCache] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -42,6 +44,14 @@ export default function AdminDashboard() {
   }, [range]);
 
   useEffect(() => { fetchData() }, [fetchData]);
+
+  // Fetch backend health
+  useEffect(() => {
+    fetch('/api/admin/health').then(r => r.json()).then(d => {
+      if (d.success) setHealth(d.data)
+      else setHealth({ status: 'offline' })
+    }).catch(() => setHealth({ status: 'offline' }))
+  }, []);
 
   if (loading || !analytics) {
     return (
@@ -74,6 +84,25 @@ export default function AdminDashboard() {
           </p>
         </div>
         <div className="text-right flex items-center gap-3">
+          {/* Backend Health */}
+          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold border ${
+            health?.status === 'ok'
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+              : health?.status === 'offline'
+              ? 'bg-red-50 text-red-600 border-red-200'
+              : 'bg-slate-50 text-slate-400 border-slate-200'
+          }`}>
+            {health?.status === 'ok' ? <Wifi size={12} /> : health?.status === 'offline' ? <WifiOff size={12} /> : <Loader2 size={12} className="animate-spin" />}
+            AI Backend {health?.status === 'ok' ? 'Online' : health?.status === 'offline' ? 'Offline' : '...'}
+          </div>
+          {/* Clear Cache */}
+          <button disabled={clearingCache} onClick={async () => {
+            setClearingCache(true)
+            try { await fetch('/api/admin/health?action=clear-cache', { method: 'POST' }) } catch {}
+            setClearingCache(false)
+          }} className="px-3 py-1.5 text-[11px] font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all flex items-center gap-1 disabled:opacity-50">
+            {clearingCache ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />} Clear Cache
+          </button>
           <div className="flex items-center p-1 bg-slate-100 rounded-xl">
             {[7, 30, 90].map(d => (
               <button

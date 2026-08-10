@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import ReactMarkdown, { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { chatStream, chatMessage, parseSSEData, extractSSEEvents, API_BASE } from '@/lib/api';
 
 /* ── Markdown components for compact chatbot widget ── */
 const chatMarkdown: Components = {
@@ -15,11 +16,11 @@ const chatMarkdown: Components = {
     <strong className="font-semibold">{children}</strong>
   ),
   em: ({ children }) => (
-    <em className="italic opacity-80">{children}</em>
+    <em className="italic font-semibold text-[#005496] border-b border-[#005496]/20">{children}</em>
   ),
   a: ({ href, children }) => {
     const finalHref = href?.startsWith('/view-document')
-      ? `${process.env.NEXT_PUBLIC_FASTAPI_URL || 'https://chatbot-ufm-api.vincode.xyz'}${href}`
+      ? `${API_BASE}${href}`
       : href;
     return (
       <a
@@ -105,7 +106,7 @@ const chatMarkdown: Components = {
 };
 
 function cleanSources(raw: string): string {
-  const FASTAPI_CHAT_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || 'https://chatbot-ufm-api.vincode.xyz';
+  const FASTAPI_CHAT_URL = API_BASE;
   
   // Convert [Nguồn...] to visible links if they have a URL
   let parsed = raw.replace(
@@ -127,12 +128,13 @@ function cleanSources(raw: string): string {
 function BotBubbleContent({ text }: { text: string }) {
   let cleaned = text;
 
-  const FASTAPI_CHAT_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || 'https://chatbot-ufm-api.vincode.xyz';
+  const FASTAPI_CHAT_URL = API_BASE;
   
   // Extract Nguồn tài liệu
   const documentSources: Array<{label: string, url: string}> = [];
   const sourceRegex = /Nguồn tài liệu(?: tham khảo)?:\s*\[(.*?)\]\((.*?)\)/gi;
   cleaned = cleaned.replace(sourceRegex, (match, label, url) => {
+    if (label.trim() === 'Kho dữ liệu Đào tạo UFM (Offline)') return '';
     const finalUrl = url.trim().startsWith('/view-document') 
       ? `${FASTAPI_CHAT_URL}${url.trim()}` 
       : url.trim();
@@ -190,16 +192,18 @@ const WELCOME_MSG = {
 
 const STORAGE_KEY = 'ufm_chatbot_messages';
 const LEAD_STORAGE_KEY = 'ufm_chatbot_lead';
+const SESSION_STORAGE_KEY = 'ufm_chatbot_session_id';
+
+type WidgetMessage = { id: number; text: string; sender: 'bot' | 'user'; isStreaming?: boolean };
 
 export default function Chatbot() {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<
-    { id: number; text: string; sender: 'bot' | 'user' }[]
-  >([WELCOME_MSG]);
+  const [messages, setMessages] = useState<WidgetMessage[]>([WELCOME_MSG]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [showResumePrompt, setShowResumePrompt] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
 
   // CRM Lead Tracking States
   const [hasLeadInfo, setHasLeadInfo] = useState(false);
@@ -210,6 +214,7 @@ export default function Chatbot() {
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const hasRestoredRef = useRef(false);
+  const sessionIdRef = useRef(`widget-${Date.now()}`);
 
   // Ref tracking for background silently analyzing chat
   const bgHasLeadInfoRef = useRef(false);
@@ -219,7 +224,7 @@ export default function Chatbot() {
   useEffect(() => { bgLeadDataRef.current = leadFormData; }, [leadFormData]);
   useEffect(() => { bgMessagesRef.current = messages; }, [messages]);
 
-  /* ── Restore messages & lead from localStorage on mount ── */
+  /* ── Restore messages, lead & session from localStorage on mount ── */
   useEffect(() => {
     if (hasRestoredRef.current) return;
     hasRestoredRef.current = true;
@@ -233,6 +238,12 @@ export default function Chatbot() {
           if (parsedLead.fullName) setLeadFormData(parsedLead);
         }
       }
+    } catch { /* ignore */ }
+
+    try {
+      const savedSession = localStorage.getItem(SESSION_STORAGE_KEY);
+      if (savedSession) sessionIdRef.current = savedSession;
+      else localStorage.setItem(SESSION_STORAGE_KEY, sessionIdRef.current);
     } catch { /* ignore */ }
 
     try {
@@ -285,7 +296,8 @@ export default function Chatbot() {
   useEffect(() => {
     if (messages.length > 1) {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+        const toSave = messages.filter(m => !m.isStreaming);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
       } catch { /* ignore */ }
     }
   }, [messages]);
@@ -343,9 +355,12 @@ export default function Chatbot() {
     // Clear lead form to ask again
     setHasLeadInfo(false);
     setLeadFormData({ fullName: '', phone: '', email: '' });
+    setSuggestions([]);
+    sessionIdRef.current = `widget-${Date.now()}`;
     try { 
       localStorage.removeItem(LEAD_STORAGE_KEY);
-      localStorage.removeItem(STORAGE_KEY); 
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.setItem(SESSION_STORAGE_KEY, sessionIdRef.current);
     } catch { /* ignore */ }
   }, []);
 
@@ -379,59 +394,107 @@ export default function Chatbot() {
     setMessages([WELCOME_MSG]);
     setHasLeadInfo(false);
     setLeadFormData({ fullName: '', phone: '', email: '' });
+    setSuggestions([]);
+    sessionIdRef.current = `widget-${Date.now()}`;
     localStorage.removeItem(LEAD_STORAGE_KEY);
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.setItem(SESSION_STORAGE_KEY, sessionIdRef.current);
     setIsOpen(false);
   }, []);
 
   /* ── Input Handlers ── */
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputValue.trim()) return;
+  const sendChat = useCallback(async (text: string) => {
+    if (!text.trim()) return;
 
-    const userText = inputValue;
-    const userMsg = { id: Date.now(), text: userText, sender: 'user' as const };
-
-    const chatHistory = messages
-      .filter((m) => m.id !== 1)
-      .map((m) => ({
-        role: m.sender === 'user' ? 'user' : 'assistant',
-        content: m.text,
-      }));
-
+    const userMsg: WidgetMessage = { id: Date.now(), text: text.trim(), sender: 'user' };
     setMessages((prev) => [...prev, userMsg]);
     setInputValue('');
     setIsTyping(true);
+    setSuggestions([]);
+
+    const botMsgId = Date.now() + 1;
 
     try {
-      const apiBase = process.env.NEXT_PUBLIC_FASTAPI_URL || 'https://chatbot-ufm-api.vincode.xyz';
-      const res = await fetch(`${apiBase}/api/v1/chat/message`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({
-          query: userText,
-          chat_history: chatHistory,
-          session_id: 'guest_web_session',
-        }),
-      });
-      if (!res.ok) throw new Error('err');
-      const data = await res.json();
+      const res = await chatStream(text.trim(), sessionIdRef.current);
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error('Cannot read stream');
+
       setIsTyping(false);
-      setMessages((prev) => [
-        ...prev,
-        { id: Date.now() + 1, text: data.response, sender: 'bot' },
-      ]);
+      setMessages((prev) => [...prev, { id: botMsgId, text: '', sender: 'bot' as const, isStreaming: true }]);
+
+      const decoder = new TextDecoder();
+      let sseBuffer = '';
+      let fullText = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        sseBuffer += decoder.decode(value, { stream: true });
+
+          const { events, remaining } = extractSSEEvents(sseBuffer);
+          sseBuffer = remaining;
+
+          for (const eventStr of events) {
+            const chunk = parseSSEData(eventStr);
+            if (!chunk) continue;
+
+            if (chunk.done) {
+              if (chunk.sources?.length) {
+                const sourcesMd = chunk.sources.map((s: { title: string; url: string }) =>
+                  `\nNguồn tài liệu tham khảo: [${s.title}](${s.url})`
+                ).join('');
+                fullText += `\n${sourcesMd}`;
+              }
+              if (chunk.suggestions) setSuggestions(chunk.suggestions);
+              if (chunk.session_id) {
+                sessionIdRef.current = chunk.session_id;
+                try { localStorage.setItem(SESSION_STORAGE_KEY, chunk.session_id); } catch {}
+              }
+            } else if (chunk.content !== undefined) {
+              fullText += chunk.content;
+              setMessages((prev) => prev.map((m) =>
+                m.id === botMsgId ? { ...m, text: fullText } : m
+              ));
+            }
+          }
+      }
+
+      // Finalize — switch from raw text to rendered markdown
+      setMessages((prev) => prev.map((m) =>
+        m.id === botMsgId ? { ...m, text: fullText, isStreaming: false } : m
+      ));
     } catch {
-      setIsTyping(false);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now() + 1,
-          text: 'Rất tiếc, đã có lỗi kết nối đến máy chủ tư vấn. Vui lòng thử lại sau!',
-          sender: 'bot',
-        },
-      ]);
+      // Fallback to sync API
+      try {
+        const data = await chatMessage(text.trim(), sessionIdRef.current);
+        setIsTyping(false);
+        if (data.session_id) {
+          sessionIdRef.current = data.session_id;
+          try { localStorage.setItem(SESSION_STORAGE_KEY, data.session_id); } catch {}
+        }
+        setMessages((prev) => {
+          const filtered = prev.filter((m) => m.id !== botMsgId);
+          return [...filtered, { id: botMsgId, text: data.answer, sender: 'bot' as const }];
+        });
+        if (data.suggestions) setSuggestions(data.suggestions);
+      } catch {
+        setIsTyping(false);
+        setMessages((prev) => {
+          const filtered = prev.filter((m) => m.id !== botMsgId);
+          return [...filtered, {
+            id: botMsgId,
+            text: 'Rất tiếc, đã có lỗi kết nối đến máy chủ tư vấn. Vui lòng thử lại sau!',
+            sender: 'bot' as const,
+          }];
+        });
+      }
     }
+  }, []);
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    sendChat(inputValue);
   };
 
   return (
@@ -671,7 +734,11 @@ export default function Chatbot() {
                     `}
                   >
                     {msg.sender === 'bot' ? (
-                      <BotBubbleContent text={msg.text} />
+                      msg.isStreaming ? (
+                        <span className="whitespace-pre-wrap">{msg.text}<span className="streaming-cursor"><span className="streaming-cursor-dot" /></span></span>
+                      ) : (
+                        <BotBubbleContent text={msg.text} />
+                      )
                     ) : (
                       msg.text
                     )}
@@ -688,11 +755,24 @@ export default function Chatbot() {
                     </div>
                     <span className="text-[11.5px] font-semibold text-[#666]">Cô Thắm</span>
                   </div>
-                  <div className="inline-flex items-center gap-[5px] bg-[#F0F0F0] rounded-[16px] rounded-bl-[4px] px-[16px] py-[12px]">
-                    <span className="w-[6px] h-[6px] rounded-full bg-[#3578E5] animate-[cbDot_1.4s_ease-in-out_infinite]" style={{ animationDelay: '0s' }} />
-                    <span className="w-[6px] h-[6px] rounded-full bg-[#5E9BF0] animate-[cbDot_1.4s_ease-in-out_infinite]" style={{ animationDelay: '0.2s' }} />
-                    <span className="w-[6px] h-[6px] rounded-full bg-[#8BB8F8] animate-[cbDot_1.4s_ease-in-out_infinite]" style={{ animationDelay: '0.4s' }} />
+                  <div className="inline-flex items-center gap-2 bg-[#F0F0F0] rounded-[16px] rounded-bl-[4px] px-[16px] py-[10px]">
+                    <span className="text-[12px] font-semibold text-slate-600">Đang trả lời</span>
+                    <div className="flex items-center gap-1">
+                      <span className="w-[6px] h-[6px] rounded-full bg-[#3578E5] animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-[6px] h-[6px] rounded-full bg-[#5E9BF0] animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-[6px] h-[6px] rounded-full bg-[#8BB8F8] animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </div>
                   </div>
+                </div>
+              )}
+              {/* Suggestion chips */}
+              {suggestions.length > 0 && !isTyping && (
+                <div className="mb-3 flex flex-wrap gap-1.5 px-1">
+                  {suggestions.map((s, i) => (
+                    <button key={i} onClick={() => sendChat(s)} className="text-[11.5px] px-2.5 py-1 rounded-full bg-[#f0f7ff] text-[#005496] border border-[#005496]/15 hover:bg-[#e0efff] active:scale-95 transition-all cursor-pointer font-medium leading-tight">
+                      {s}
+                    </button>
+                  ))}
                 </div>
               )}
               <div ref={messagesEndRef} />

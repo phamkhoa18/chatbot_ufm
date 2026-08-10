@@ -44,7 +44,9 @@ export default function AdminSidebar({ userRole, onCloseMobile, isCollapsed = fa
   const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>({})
   const { badges } = useNotifications()
 
-  const getBadgeCount = (href: string) => badges[href] || 0
+  const getBadgeCount = (item: NavItemType) => {
+    return badges[item.label] || badges[item.href] || 0
+  }
 
   // Bỏ logic filter quyền vì bot k dùng
   const filteredNav = ADMIN_NAV;
@@ -118,9 +120,9 @@ export default function AdminSidebar({ userRole, onCloseMobile, isCollapsed = fa
                       <span className={`${isActive ? 'font-semibold' : 'font-medium'}`}>{item.label}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      {getBadgeCount(item.href) > 0 && (
+                      {getBadgeCount(item) > 0 && (
                         <span className="min-w-[18px] h-[18px] flex items-center justify-center px-1 text-[10px] font-bold bg-rose-500 text-white rounded-full leading-none animate-in zoom-in duration-300">
-                          {getBadgeCount(item.href)}
+                          {getBadgeCount(item)}
                         </span>
                       )}
                     </div>
@@ -191,14 +193,14 @@ export default function AdminSidebar({ userRole, onCloseMobile, isCollapsed = fa
                   {!isCollapsed && item.badge && (
                     <span className="px-1.5 py-0.5 text-[10px] font-bold bg-[#005496] text-white rounded-md leading-none">{item.badge}</span>
                   )}
-                  {!isCollapsed && getBadgeCount(item.href) > 0 && (
+                  {!isCollapsed && getBadgeCount(item) > 0 && (
                     <span className="min-w-[18px] h-[18px] flex items-center justify-center px-1 text-[10px] font-bold bg-rose-500 text-white rounded-full leading-none animate-in zoom-in duration-300">
-                      {getBadgeCount(item.href)}
+                      {getBadgeCount(item)}
                     </span>
                   )}
-                  {isCollapsed && getBadgeCount(item.href) > 0 && (
+                  {isCollapsed && getBadgeCount(item) > 0 && (
                     <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] flex items-center justify-center px-0.5 text-[8px] font-bold bg-rose-500 text-white rounded-full leading-none">
-                      {getBadgeCount(item.href)}
+                      {getBadgeCount(item)}
                     </span>
                   )}
                 </Link>

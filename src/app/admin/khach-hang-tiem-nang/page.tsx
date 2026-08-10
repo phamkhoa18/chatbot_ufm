@@ -6,11 +6,18 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from '@/components/ui/table'
 import {
   Search, Users, Loader2, Trash2, CheckCircle2,
-  Clock, Phone, Mail, MessageSquare, Bot, Star, Info, BookOpen
+  Clock, Phone, Mail, MessageSquare, Bot, Star, Info, BookOpen, Download, RotateCcw, Filter
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { showToast } from '@/lib/toast'
@@ -22,7 +29,11 @@ function LeadsPageContent() {
   const [leads, setLeads] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState(searchParams.get('search') || '')
-  const [statusFilter, setStatusFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('ALL')
+  const [potentialFilter, setPotentialFilter] = useState('ALL')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [limit, setLimit] = useState('15')
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -42,9 +53,13 @@ function LeadsPageContent() {
     try {
       const params = new URLSearchParams()
       params.set('page', String(page))
-      params.set('limit', '15')
+      params.set('limit', limit)
       if (search) params.set('search', search)
-      if (statusFilter) params.set('status', statusFilter)
+      if (statusFilter && statusFilter !== 'ALL') params.set('status', statusFilter)
+      if (potentialFilter && potentialFilter !== 'ALL') params.set('potential', potentialFilter)
+      if (startDate) params.set('startDate', startDate)
+      if (endDate) params.set('endDate', endDate)
+
       const res = await fetch(`/api/admin/leads?${params}`)
       const json = await res.json()
       if (json.success) {
@@ -54,12 +69,48 @@ function LeadsPageContent() {
       }
     } catch { }
     setLoading(false)
-  }, [page, search, statusFilter])
+  }, [page, limit, search, statusFilter, potentialFilter, startDate, endDate])
 
   useEffect(() => { 
     setMounted(true)
     fetchData() 
   }, [fetchData])
+
+  const handleExportCSV = async () => {
+    try {
+      const params = new URLSearchParams()
+      if (search) params.set('search', search)
+      if (statusFilter && statusFilter !== 'ALL') params.set('status', statusFilter)
+      if (potentialFilter && potentialFilter !== 'ALL') params.set('potential', potentialFilter)
+      if (startDate) params.set('startDate', startDate)
+      if (endDate) params.set('endDate', endDate)
+
+      const res = await fetch(`/api/admin/leads/export?${params}`)
+      if (res.ok) {
+        const blob = await res.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `danh_sach_khach_hang_ufm_${Date.now()}.csv`
+        a.click()
+        URL.revokeObjectURL(url)
+        showToast.success('Đã tải xuống file Excel thành công')
+      } else {
+        showToast.error('Lỗi khi xuất file Excel')
+      }
+    } catch {
+      showToast.error('Lỗi kết nối')
+    }
+  }
+
+  const handleResetFilters = () => {
+    setSearch('')
+    setStatusFilter('ALL')
+    setPotentialFilter('ALL')
+    setStartDate('')
+    setEndDate('')
+    setPage(1)
+  }
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     try {
@@ -81,14 +132,12 @@ function LeadsPageContent() {
   const handleViewLead = async (lead: any) => {
     setSelectedLead(lead)
     if (!lead.isRead) {
-      // Mark as read locally and hit API
       setLeads(prev => prev.map(l => l._id === lead._id ? { ...l, isRead: true } : l))
       try {
         await fetch(`/api/admin/leads/${lead._id}`, {
           method: 'PUT',
           body: JSON.stringify({ isRead: true })
         })
-        // NotificationProvider auto-polls every 30s to clear badge, or user can reload
       } catch (e) {}
     }
   }
@@ -109,48 +158,114 @@ function LeadsPageContent() {
 
   const [selectedLead, setSelectedLead] = useState<any>(null)
 
-  const statusTabs = [
-    { label: 'Tất cả', value: '' },
-    { label: 'Mới (Chưa LH)', value: 'New' },
-    { label: 'Đã liên hệ', value: 'Contacted' },
-    { label: 'Đã nộp HS', value: 'Enrolled' }
-  ]
+  const isFiltered = Boolean(search || (statusFilter && statusFilter !== 'ALL') || (potentialFilter && potentialFilter !== 'ALL') || startDate || endDate)
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-500 relative">
-      <div className="flex flex-col md:flex-row items-baseline justify-between gap-4">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-[22px] font-bold tracking-tight text-slate-800 flex items-center gap-2">
             <Users className="w-6 h-6 text-[#005496]" />
             Khách hàng tiềm năng (CRM)
           </h1>
-          <p className="text-[15px] text-slate-500 font-medium mt-1">Tổng cộng <span className="text-[#005496] font-bold">{total}</span> liên hệ thu thập từ Bot</p>
+          <p className="text-[14px] text-slate-500 font-medium mt-1">Tổng cộng <span className="text-[#005496] font-bold">{total}</span> liên hệ thu thập từ Bot</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={handleExportCSV}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-10 px-4 rounded-xl shadow-sm gap-2"
+          >
+            <Download className="w-4 h-4" />
+            Tải Excel theo lọc
+          </Button>
         </div>
       </div>
 
-      <div className="flex items-center gap-1 bg-white rounded-xl border border-slate-200 p-1 shadow-sm overflow-x-auto">
-        {statusTabs.map(tab => (
-          <button
-            key={tab.value}
-            onClick={() => { setStatusFilter(tab.value); setPage(1); }}
-            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12px] font-semibold transition-all whitespace-nowrap ${
-              statusFilter === tab.value
-                ? 'bg-[#005496] text-white shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      {/* FILTER BAR — shadcn UI Select Components */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+          {/* Search Input */}
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text" placeholder="Tìm theo Tên, SĐT, Email..."
+              className="w-full pl-10 pr-4 h-10 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#005496]/20 focus:border-[#005496] transition-all"
+              value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
+            />
+          </div>
 
-      <div className="flex-1 w-full lg:max-w-sm relative group">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-[#005496] transition-colors" />
-        <input
-          type="text" placeholder="Tìm theo tên, SĐT, email..."
-          className="w-full pl-9 pr-4 h-9 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-800 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:ring-1 focus:ring-[#005496]/50 focus:border-[#005496] transition-all shadow-sm"
-          value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-        />
+          {/* Status Filter Dropdown */}
+          <Select value={statusFilter} onValueChange={(val) => { setStatusFilter(val); setPage(1); }}>
+            <SelectTrigger className="h-10 bg-slate-50 border-slate-200 text-xs font-semibold text-slate-700 rounded-xl">
+              <SelectValue placeholder="Trạng thái CRM" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
+              <SelectItem value="New">🔴 Mới (Chưa LH)</SelectItem>
+              <SelectItem value="Contacted">🔵 Đã liên hệ</SelectItem>
+              <SelectItem value="Enrolled">🟢 Đã nộp HS</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Potential Filter Dropdown */}
+          <Select value={potentialFilter} onValueChange={(val) => { setPotentialFilter(val); setPage(1); }}>
+            <SelectTrigger className="h-10 bg-slate-50 border-slate-200 text-xs font-semibold text-slate-700 rounded-xl">
+              <SelectValue placeholder="Mức độ AI Đánh giá" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Tất cả mức độ AI</SelectItem>
+              <SelectItem value="high">🌟 Tiềm năng Cao (≥7 điểm)</SelectItem>
+              <SelectItem value="medium">⚡ Trung bình (5-6 điểm)</SelectItem>
+              <SelectItem value="low">🔹 Ít tiềm năng (&lt;5 điểm)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Date Filter & Per-Page Controls */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-bold text-slate-600">Từ ngày:</span>
+            <input
+              type="date"
+              value={startDate}
+              onChange={e => { setStartDate(e.target.value); setPage(1); }}
+              className="h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg font-medium text-slate-700 outline-none focus:bg-white focus:border-[#005496]"
+            />
+            <span className="font-bold text-slate-600">Đến:</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={e => { setEndDate(e.target.value); setPage(1); }}
+              className="h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg font-medium text-slate-700 outline-none focus:bg-white focus:border-[#005496]"
+            />
+            {isFiltered && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleResetFilters}
+                className="h-9 text-rose-600 hover:text-rose-700 hover:bg-rose-50 font-bold px-3 gap-1 rounded-lg"
+              >
+                <RotateCcw className="w-3.5 h-3.5" /> Đặt lại bộ lọc
+              </Button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-slate-600">Hiển thị:</span>
+            <Select value={limit} onValueChange={(val) => { setLimit(val); setPage(1); }}>
+              <SelectTrigger className="h-9 w-[130px] bg-slate-50 border-slate-200 text-xs font-bold rounded-lg">
+                <SelectValue placeholder="Số dòng/trang" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10 dòng/trang</SelectItem>
+                <SelectItem value="15">15 dòng/trang</SelectItem>
+                <SelectItem value="30">30 dòng/trang</SelectItem>
+                <SelectItem value="50">50 dòng/trang</SelectItem>
+                <SelectItem value="100">100 dòng/trang</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex flex-col">
