@@ -1084,55 +1084,55 @@ export default function ChatCreatePage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
-                className="text-center mb-8 md:mb-12 relative z-10"
+                className="text-center mb-6 relative z-10"
               >
                 {/* UFM chatbot icon */}
                 <motion.div
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ delay: 0.1, duration: 0.4 }}
-                  className="w-16 h-16 md:w-[72px] md:h-[72px] mx-auto mb-5 rounded-2xl bg-white border border-[#d0e3f5] shadow-[0_4px_24px_rgba(0,84,150,0.12)] flex items-center justify-center overflow-hidden"
+                  className="w-14 h-14 md:w-16 md:h-16 mx-auto mb-3.5 rounded-2xl bg-white border border-[#d0e3f5] shadow-[0_4px_20px_rgba(0,84,150,0.1)] flex items-center justify-center overflow-hidden"
                 >
-                  <Image src="/images/cotham_chatbot.png" alt="Cô Thắm" width={72} height={72} className="w-full h-full object-cover scale-[1.15]" priority />
+                  <Image src="/images/cotham_chatbot.png" alt="Cô Thắm" width={64} height={64} className="w-full h-full object-cover scale-[1.15]" priority />
                 </motion.div>
 
-                <h1 className="text-[24px] md:text-[36px] font-bold tracking-tight mb-2 md:mb-3" style={{ color: TEXT_COLOR }}>
+                <h1 className="text-[22px] md:text-[30px] font-bold tracking-tight mb-1.5" style={{ color: TEXT_COLOR }}>
                   {greeting.text}{' '}
                   <span className="bg-gradient-to-r from-[#005496] to-[#0284c7] bg-clip-text text-transparent">{greeting.highlight}</span>
                   {' '}{greeting.emoji}
                   <br />
-                  <span className="text-[20px] md:text-[28px] mt-2 block font-semibold text-[#005496]">
+                  <span className="text-[18px] md:text-[24px] mt-1 block font-bold text-[#005496]">
                     Mình là Cô Thắm
                   </span>
                 </h1>
-                <p className="text-[14px] md:text-[16px] text-[#9ca3af] font-normal">
+                <p className="text-[13px] md:text-[14px] text-[#9ca3af] font-normal">
                   Bạn hãy hỏi cô những thắc mắc về tuyển sinh, cô sẽ tư vấn cho bạn
                 </p>
               </motion.div>
 
-              {/* Suggestion cards — Premium grid */}
+              {/* Suggestion cards — Compact & Perfectly fitted to input box */}
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
-                className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl w-full mb-7 md:mb-10 px-1 relative z-10"
+                className="grid grid-cols-2 gap-2 md:gap-2.5 max-w-lg w-full mb-5 px-1 relative z-10"
               >
                 {QUICK_SUGGESTIONS.map((s, i) => (
                   <motion.button
                     key={i}
                     onClick={() => sendMessage(s.text)}
                     disabled={isLoading}
-                    whileHover={{ y: -3, scale: 1.01 }}
+                    whileHover={{ y: -2, scale: 1.01 }}
                     whileTap={{ scale: 0.98 }}
-                    className="group flex items-center gap-3.5 p-3.5 md:p-4 bg-white/90 backdrop-blur-md border border-slate-200 rounded-2xl text-left hover:border-[#005496]/40 hover:shadow-[0_8px_24px_rgba(0,84,150,0.08)] transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                    className="group flex items-center gap-2.5 p-2.5 md:p-3 bg-white border border-slate-200/80 rounded-xl text-left hover:border-[#005496]/40 hover:shadow-[0_4px_16px_rgba(0,84,150,0.06)] transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
                   >
                     <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110 shadow-sm"
+                      className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105 shadow-2xs"
                       style={{ backgroundColor: s.bg, color: s.color, border: `1px solid ${s.border}` }}
                     >
-                      <s.icon size={18} strokeWidth={2.2} />
+                      <s.icon size={15} strokeWidth={2.2} />
                     </div>
-                    <span className="text-[13px] md:text-[14px] font-semibold leading-snug text-slate-700 group-hover:text-[#005496] transition-colors line-clamp-2">
+                    <span className="text-[11.5px] md:text-[12.5px] font-semibold leading-tight text-slate-700 group-hover:text-[#005496] transition-colors line-clamp-2">
                       {s.text}
                     </span>
                   </motion.button>
