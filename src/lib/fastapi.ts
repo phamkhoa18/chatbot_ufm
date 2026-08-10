@@ -22,29 +22,31 @@ export async function getFastApiToken(): Promise<string | null> {
     return cachedToken
   }
 
-  const formData = new URLSearchParams()
-  formData.append('username', ADMIN_USER)
-  formData.append('password', ADMIN_PASS)
-
   try {
-    const res = await fetch(`${FASTAPI_URL}/api/v1/admin/login`, {
+    const res = await fetch(`${FASTAPI_URL}/api/v1/auth/login`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: formData,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: ADMIN_USER,
+        password: ADMIN_PASS,
+      }),
     })
 
     if (res.ok) {
       const data = await res.json()
       if (data.access_token) {
         cachedToken = data.access_token
-        tokenExpiresAt = Date.now() + (data.expires_in_minutes * 60 * 1000) - 60000
+        tokenExpiresAt = Date.now() + ((data.expires_in_minutes || 1440) * 60 * 1000) - 60000
         return cachedToken
       }
+    } else {
+      console.warn('[fastapi] Token login failed status:', res.status, await res.text().catch(() => ''))
     }
   } catch (error) {
     console.error('[fastapi] Login error:', error)
   }
-  return null
+
+  return API_KEY // Fallback API key if auth token login fails
 }
 
 /**
