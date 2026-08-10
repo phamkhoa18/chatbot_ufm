@@ -4,7 +4,7 @@ import { fastApiRequest } from '@/lib/fastapi'
 // GET /api/admin/health — System health check
 export async function GET() {
   try {
-    const data = await fastApiRequest('/api/v1/health/', { timeout: 5000 })
+    const data = await fastApiRequest('/api/v1/health', { timeout: 5000 })
     return NextResponse.json({ success: true, data })
   } catch (error: any) {
     return NextResponse.json({
